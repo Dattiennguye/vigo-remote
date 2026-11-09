@@ -89,3 +89,8 @@ t('Flipper .ir parsed + raw + bỏ qua giao thức lạ', () => {
 });
 
 console.log('\n' + n + ' nhóm kiểm tra đạt.');
+
+// Hồi quy: các lớp có display riêng (vd .sheet{display:flex}) không được che thuộc tính hidden.
+const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'web', 'css', 'app.css'), 'utf8');
+assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(css), 'thiếu [hidden]{display:none!important}');
+console.log('ok  - CSS giữ thuộc tính hidden (không còn lớp phủ chặn thao tác)');
