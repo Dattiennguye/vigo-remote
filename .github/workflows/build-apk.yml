@@ -22,7 +22,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Chấp nhận license Android SDK (runner đã có sẵn SDK)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          ls "$ANDROID_HOME/licenses"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
