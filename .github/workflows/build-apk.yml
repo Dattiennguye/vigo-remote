@@ -1,0 +1,42 @@
+name: Build VIGO Remote APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chạy kiểm thử bộ mã hóa IR
+        run: node tests/protocols.test.js
+
+      - name: Đồng bộ giao diện web vào assets Android
+        run: bash tools/sync-web.sh
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK (debug, đã ký bằng khóa debug nên cài được ngay)
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+
+      - name: Đổi tên và tải APK lên
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/VIGO-Remote.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VIGO-Remote-apk
+          path: out/VIGO-Remote.apk

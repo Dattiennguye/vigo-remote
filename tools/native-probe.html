@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VIGO Native Probe</title>
+<style>body{font:15px system-ui;background:#0B0D12;color:#EEF1F8;padding:16px}pre{white-space:pre-wrap;background:#171B26;padding:12px;border-radius:12px}.ok{color:#38D996}.no{color:#FF5C6C}</style></head>
+<body>
+<h2>VIGO — dò Native Bridge</h2>
+<p>Đóng gói trang này bằng công cụ HTML → APK của bạn, cài lên máy và mở. Trang cho biết công cụ có chèn đối tượng Native nào vào WebView hay không.</p>
+<pre id="out">Đang dò…</pre>
+<script>
+(function () {
+  var out = [];
+  function line(cls, t) { out.push('<span class="' + cls + '">' + t + '</span>'); }
+  // 1) Tên mà giao diện VIGO mong đợi
+  var v = window.VigoNative;
+  line(v ? 'ok' : 'no', 'window.VigoNative: ' + (v ? 'CÓ' : 'KHÔNG'));
+  if (v) {
+    ['hasIrEmitter', 'getCarrierFrequencies', 'transmit', 'vibrate'].forEach(function (m) {
+      line(typeof v[m] === 'function' ? 'ok' : 'no', '  .' + m + ': ' + typeof v[m]);
+    });
+  }
+  // 2) Tìm đối tượng lạ do công cụ chèn (so với iframe sạch)
+  var f = document.createElement('iframe'); f.style.display = 'none'; document.body.appendChild(f);
+  var clean = {}; Object.getOwnPropertyNames(f.contentWindow).forEach(function (k) { clean[k] = 1; });
+  var extra = Object.getOwnPropertyNames(window).filter(function (k) { return !clean[k] && ['out', 'v', 'f', 'clean'].indexOf(k) < 0; });
+  line('', '\nThuộc tính lạ trên window (có thể là cầu nối của công cụ): ' + (extra.length ? extra.join(', ') : '(không có)'));
+  extra.forEach(function (k) {
+    try {
+      var o = window[k];
+      if (o && (typeof o === 'object' || typeof o === 'function')) {
+        var names = []; for (var p in o) names.push(p);
+        line('', '  ' + k + ' → ' + (names.join(', ') || '(không liệt kê được)'));
+      }
+    } catch (e) {}
+  });
+  line('', '\nUser-Agent: ' + navigator.userAgent);
+  line('', '\nKết luận: nếu "window.VigoNative" là KHÔNG và không có đối tượng IR nào ở trên, công cụ của bạn KHÔNG có Native Bridge cho IR → dùng dự án android/ trong gói này.');
+  document.getElementById('out').innerHTML = out.join('\n');
+})();
+</script></body></html>

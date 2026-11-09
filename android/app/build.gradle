@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'vn.vigo.remote'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'vn.vigo.remote'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// Ứng dụng không dùng thư viện ngoài: không cần AndroidX, không cần Internet.
+dependencies {
+}

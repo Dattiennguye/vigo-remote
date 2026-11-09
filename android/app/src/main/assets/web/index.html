@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0B0D12">
+<title>VIGO Universal Remote</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="banner" class="banner" hidden></div>
+<main id="app" aria-live="polite"></main>
+<nav id="nav" class="nav" aria-label="Điều hướng chính">
+  <a href="#home" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Trang chủ</span></a>
+  <a href="#devices" data-tab="devices"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg><span>Thiết bị</span></a>
+  <a href="#setup" data-tab="setup"><svg viewBox="0 0 24 24"><path d="M4 8c4-4 12-4 16 0M7 11.5c2.7-2.5 7.3-2.5 10 0M10 15c1.2-1 2.8-1 4 0"/><circle cx="12" cy="18.5" r="1.4"/></svg><span>IR Setup</span></a>
+</nav>
+<div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
+<div id="sheet" class="sheet" hidden></div>
+
+<script src="data/ir-library.js"></script>
+<script src="js/ir-protocols.js"></script>
+<script src="js/ir-bridge.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
