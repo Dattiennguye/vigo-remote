@@ -75,7 +75,7 @@
   /* ---------- định nghĩa nút ---------- */
   var TV_KEYS = [['power', 'Nguồn'], ['vol_up', 'Âm lượng +'], ['vol_down', 'Âm lượng −'], ['mute', 'Tắt tiếng'], ['ch_up', 'Kênh +'], ['ch_down', 'Kênh −'],
     ['up', 'Lên'], ['down', 'Xuống'], ['left', 'Trái'], ['right', 'Phải'], ['ok', 'OK'], ['back', 'Quay lại'], ['home', 'Home'], ['menu', 'Menu'],
-    ['src_hdmi', 'HDMI'], ['src_av', 'AV'], ['src_tv', 'TV']];
+    ['src_hdmi', 'HDMI'], ['src_av', 'AV'], ['src_tv', 'TV'], ['source', 'Đổi nguồn vào']];
   for (var d = 0; d <= 9; d++) TV_KEYS.push([String(d), 'Số ' + d]);
   var AC_KEYS = [['power', 'Bật/tắt (đảo trạng thái)'], ['power_on', 'Bật'], ['power_off', 'Tắt'], ['st_off', 'Khung trạng thái: Tắt'],
     ['temp_up', 'Nhiệt độ +'], ['temp_down', 'Nhiệt độ −'],
@@ -101,6 +101,7 @@
   aliasAdd('tv', 'ch_down', ['ch_prev', 'ch_down', 'channel_down', 'ch_minus', 'chdown']);
   ['up', 'down', 'left', 'right', 'home', 'menu', 'back'].forEach(function (k) { aliasAdd('tv', k, [k]); });
   aliasAdd('tv', 'ok', ['ok', 'enter', 'select']);
+  aliasAdd('tv', 'source', ['source', 'input']);
   aliasAdd('tv', 'src_hdmi', ['hdmi', 'hdmi1']); aliasAdd('tv', 'src_av', ['av']); aliasAdd('tv', 'src_tv', ['tv']);
   for (var n = 0; n <= 9; n++) aliasAdd('tv', String(n), [String(n), 'num_' + n, 'n' + n, 'digit_' + n]);
   aliasAdd('ac', 'power_off', ['off', 'power_off']); aliasAdd('ac', 'power', ['power']); aliasAdd('ac', 'power_on', ['on', 'power_on']);
@@ -221,10 +222,12 @@
     var type = h('select', { disabled: edit }, h('option', { value: 'tv', text: 'TV' }), h('option', { value: 'ac', text: 'Điều hòa' }));
     if (edit) type.value = dev.type;
     var brandSel = h('select', null, h('option', { value: '', text: '— Chọn hãng —' }));
-    LIB.brands.forEach(function (b) { brandSel.appendChild(h('option', { value: b, text: b })); });
+    var BRAND_NAMES = ['Samsung', 'LG', 'Sony', 'TCL', 'Hisense', 'Xiaomi', 'Panasonic', 'Sharp', 'Toshiba', 'Casper', 'Daikin', 'Mitsubishi'];
+    LIB.brands.forEach(function (b) { if (BRAND_NAMES.indexOf(b) < 0) BRAND_NAMES.push(b); });
+    BRAND_NAMES.forEach(function (b) { brandSel.appendChild(h('option', { value: b, text: b })); });
     brandSel.appendChild(h('option', { value: '__other', text: 'Khác (tự nhập)' }));
     var brandOther = h('input', { placeholder: 'Tên hãng', style: 'display:none;margin-top:8px', maxlength: '30' });
-    if (edit && dev.brand) { if (LIB.brands.indexOf(dev.brand) >= 0) brandSel.value = dev.brand; else { brandSel.value = '__other'; brandOther.value = dev.brand; brandOther.style.display = ''; } }
+    if (edit && dev.brand) { if (BRAND_NAMES.indexOf(dev.brand) >= 0) brandSel.value = dev.brand; else { brandSel.value = '__other'; brandOther.value = dev.brand; brandOther.style.display = ''; } }
     brandSel.addEventListener('change', function () { brandOther.style.display = brandSel.value === '__other' ? '' : 'none'; refreshLib(); });
     var model = h('input', { value: edit ? dev.model : '', maxlength: '40', placeholder: 'Ví dụ: UA55AU7000 (tùy chọn)' });
     var libWrap = h('div');
@@ -233,11 +236,15 @@
     function refreshLib() {
       libWrap.replaceChildren(); libSel = null;
       if (edit) return;
-      var list = LIB.entries.filter(function (e) { return e.type === type.value && (!curBrand() || e.brand === curBrand()); });
-      if (!list.length) { libWrap.appendChild(h('p', { class: 'muted small', text: 'Thư viện chưa có mã dựng sẵn cho lựa chọn này. Sau khi lưu, hãy nhập mã trong IR Setup (Flipper .ir, Pronto, giao thức hoặc raw).' })); return; }
-      libSel = h('select', null, h('option', { value: '', text: '— Không dùng, tự nhập mã sau —' }));
-      list.forEach(function (e, i) { libSel.appendChild(h('option', { value: String(LIB.entries.indexOf(e)), text: e.brand + ' ' + e.model })); });
-      libWrap.appendChild(h('label', { text: 'Bộ mã từ thư viện' })); libWrap.appendChild(libSel);
+      if (!curBrand()) { libWrap.appendChild(h('p', { class: 'muted small', text: 'Chọn hãng để xem các bộ mã dựng sẵn.' })); return; }
+      var list = LIB.entries.filter(function (e) { return e.type === type.value && e.brand === curBrand(); });
+      if (!list.length) { libWrap.appendChild(h('p', { class: 'muted small', text: 'Thư viện chưa có mã dựng sẵn cho hãng/loại này. Sau khi lưu, hãy nhập mã trong IR Setup (Flipper .ir, Pronto, giao thức hoặc raw).' })); return; }
+      libSel = h('select', null);
+      list.forEach(function (e) { libSel.appendChild(h('option', { value: String(LIB.entries.indexOf(e)), text: e.model + ' · ' + Object.keys(e.codes).length + ' nút' })); });
+      libSel.appendChild(h('option', { value: '', text: '— Không dùng, tự nhập mã sau —' }));
+      libSel.selectedIndex = 0;
+      libWrap.appendChild(h('label', { text: 'Dòng / remote (' + list.length + ' bộ mã)' })); libWrap.appendChild(libSel);
+      libWrap.appendChild(h('p', { class: 'muted small', text: 'Thư viện đánh số theo remote, không theo tên model TV. Không biết chọn bộ nào? Cứ lưu, rồi vào IR Setup → "Dò tự động".' }));
     }
     type.addEventListener('change', refreshLib); refreshLib();
     var err = h('p', { class: 'small', style: 'color:var(--err)' });
@@ -254,7 +261,10 @@
       }
       var created = Store.add(patch);
       closeSheet();
-      if (Object.keys(created.codes).length) location.hash = '#device/' + created.id;
+      if (Object.keys(created.codes).length) {
+        location.hash = '#device/' + created.id;
+        toast('demo', 'Đã nạp bộ mã dựng sẵn (chưa kiểm tra trên TV của bạn). Nếu nút không phản ứng, vào IR Setup để thử hoặc dò tự động.');
+      }
       else { currentSetupDev = created.id; location.hash = '#setup'; toast('demo', 'Đã tạo thiết bị. Hãy nhập mã IR cho thiết bị này.'); }
     }
     openSheet(h('div', null, h('h1', { text: edit ? 'Sửa thiết bị' : 'Thêm thiết bị' }),
@@ -303,7 +313,7 @@
     num.appendChild(h('span')); num.appendChild(rb(dev, '0', P('0'), 'Số 0')); num.appendChild(h('span'));
     wrap.appendChild(num);
     wrap.appendChild(h('h2', { text: 'Nguồn vào' }));
-    wrap.appendChild(h('div', { class: 'pad g3' }, rb(dev, 'HDMI', P('src_hdmi'), 'HDMI', 'sm'), rb(dev, 'AV', P('src_av'), 'AV', 'sm'), rb(dev, 'TV', P('src_tv'), 'TV', 'sm')));
+    wrap.appendChild(h('div', { class: 'pad g4' }, rb(dev, 'HDMI', P('src_hdmi'), 'HDMI', 'sm'), rb(dev, 'AV', P('src_av'), 'AV', 'sm'), rb(dev, 'TV', P('src_tv'), 'TV', 'sm'), rb(dev, 'Nguồn', P('source'), 'Đổi nguồn vào', 'sm')));
     add(wrap, extras(dev));
     return wrap;
   }
@@ -416,6 +426,7 @@
     setup.work = dev ? clone(dev.codes) : null;
     setup.src = dev && dev.source ? [dev.source] : [];
     setup.dirty = false; setup.tried = {};
+    setup.libNote = null; setup.altSig = null; setup.libIdx = null;
   }
   function putCode(key, spec, label, srcName) {
     IR.encode(spec);
@@ -428,8 +439,140 @@
     return spec.protocol + ' · addr ' + spec.address + ' · cmd ' + spec.command;
   }
 
+  /* ---------- thư viện mã dựng sẵn + dò tự động ---------- */
+  var scan = null; /* trạng thái dò tự động; được đặt lại mỗi lần vào màn hình IR Setup */
+  function entriesFor(type, brand) { return LIB.entries.filter(function (e) { return e.type === type && e.brand === brand; }); }
+  function brandsFor(type) { return LIB.brands.filter(function (b) { return entriesFor(type, b).length > 0; }); }
+  function powerSig(e) { return e.codes.power ? JSON.stringify(e.codes.power.spec) : null; }
+
+  /* Thay toàn bộ mã đang làm việc bằng một bộ mã thư viện. */
+  function applyEntry(entry, powerVerified) {
+    setup.work = {}; setup.src = []; setup.tried = {};
+    var n = 0;
+    Object.keys(entry.codes).forEach(function (k) {
+      var c = entry.codes[k];
+      putCode(k, clone(c.spec), c.label, (entry.source && entry.source.name) || 'Thư viện');
+      n++;
+    });
+    if (powerVerified && setup.work.power) setup.work.power.verified = true;
+    setup.dirty = true;
+    return n;
+  }
+
+  /* Các bộ mã cùng hãng, gom theo mã Nguồn (bộ phổ biến nhất thử trước). */
+  function scanCandidates(type, brand) {
+    var map = {}, order = [];
+    entriesFor(type, brand).forEach(function (e) {
+      var sig = powerSig(e); if (!sig) return;
+      if (!map[sig]) { map[sig] = { sig: sig, spec: e.codes.power.spec, entries: [], weight: 0 }; order.push(map[sig]); }
+      map[sig].entries.push(e); map[sig].weight += (e.models && e.models.length) || 1;
+    });
+    return order.sort(function (a, b) { return b.weight - a.weight; });
+  }
+
+  function libraryCard(dev, brands) {
+    var native = Bridge.mode() === 'native';
+    var brand = brands.indexOf(setup.libBrand) >= 0 ? setup.libBrand : (brands.indexOf(dev.brand) >= 0 ? dev.brand : brands[0]);
+    setup.libBrand = brand;
+    var card = h('div', { class: 'card' }, h('h3', { text: '3. Chọn hãng và dòng TV (thư viện dựng sẵn)' }),
+      h('p', { class: 'muted small', text: 'Mã lấy nguyên từ Flipper-IRDB (CC0), app không tự tạo. Thư viện đánh số theo remote chứ không theo tên model TV; nếu không biết bộ nào đúng, dùng "Dò tự động" bên dưới.' }));
+
+    var bsel = h('select', { 'aria-label': 'Hãng' }, brands.map(function (b) { return h('option', { value: b, text: b + ' (' + entriesFor(dev.type, b).length + ' bộ mã)' }); }));
+    bsel.value = brand;
+    bsel.addEventListener('change', function () { setup.libBrand = bsel.value; setup.libIdx = null; setup.altSig = null; setup.libNote = null; refresh(); });
+    var ordered = entriesFor(dev.type, brand);
+    if (setup.altSig) ordered = ordered.filter(function (e) { return powerSig(e) === setup.altSig; }).concat(ordered.filter(function (e) { return powerSig(e) !== setup.altSig; }));
+    var esel = h('select', { 'aria-label': 'Dòng / remote' }, ordered.map(function (e) {
+      return h('option', { value: String(LIB.entries.indexOf(e)), text: (setup.altSig && powerSig(e) === setup.altSig ? '★ ' : '') + e.model + ' · ' + Object.keys(e.codes).length + ' nút' });
+    }));
+    if (setup.libIdx !== null && setup.libIdx !== undefined) esel.value = String(setup.libIdx);
+
+    var msg = h('p', { class: 'small', 'aria-live': 'polite' });
+    if (setup.libNote) { msg.style.color = setup.libNote[0] ? 'var(--ok)' : 'var(--err)'; msg.textContent = setup.libNote[1]; }
+
+    card.appendChild(h('label', { text: 'Hãng' })); card.appendChild(bsel);
+    card.appendChild(h('label', { text: 'Dòng / remote' + (setup.altSig ? ' (★ = cùng mã Nguồn với bộ vừa dò thấy)' : '') })); card.appendChild(esel);
+    card.appendChild(h('button', { class: 'btn primary block', style: 'margin-top:10px', text: 'Nạp bộ mã này (thay thế mã hiện có)', onclick: function () {
+      var en = LIB.entries[Number(esel.value)];
+      function go() {
+        var n = applyEntry(en, false);
+        setup.libIdx = Number(esel.value);
+        setup.libNote = [true, 'Đã nạp ' + n + ' nút từ bộ «' + en.model + '». Hãy thử vài nút ở mục 5 rồi lưu.'];
+        refresh();
+      }
+      if (Object.keys(setup.work).length) askConfirm('Thay thế các mã hiện có của thiết bị này bằng bộ «' + en.model + '»?', 'Thay thế', go); else go();
+    } }));
+    card.appendChild(msg);
+
+    /* --- Dò tự động --- */
+    var st = h('p', { class: 'small', 'aria-live': 'polite' });
+    var ctl = h('div', { class: 'row wrap' });
+    var list = scanCandidates(dev.type, brand);
+
+    function stopScan() { scan = null; }
+    function paintStatus() {
+      if (!scan) return;
+      var c = scan.list[scan.i];
+      st.style.color = 'var(--text)';
+      st.textContent = 'Đã gửi lệnh Nguồn của bộ ' + (scan.i + 1) + '/' + scan.list.length + ' (' + c.entries[0].model + ').' + (scan.auto ? ' Tự chuyển bộ sau ' + scan.left + ' giây.' : ' Đang tạm dừng tự chuyển.');
+    }
+    function paintCtl() {
+      ctl.replaceChildren();
+      if (!scan) {
+        ctl.appendChild(h('button', { class: 'btn', disabled: !native || !list.length, text: 'Bắt đầu dò (' + list.length + ' mã Nguồn khác nhau)', onclick: start }));
+        return;
+      }
+      ctl.appendChild(h('button', { class: 'btn primary', text: 'TV đã phản ứng ✓', onclick: hit }));
+      ctl.appendChild(h('button', { class: 'btn', text: '◀ Bộ trước', disabled: scan.i <= 0, onclick: function () { go(scan.i - 1); } }));
+      ctl.appendChild(h('button', { class: 'btn', text: 'Gửi lại', onclick: function () { go(scan.i); } }));
+      ctl.appendChild(h('button', { class: 'btn', text: 'Bộ tiếp ▶', onclick: function () { go(scan.i + 1); } }));
+      ctl.appendChild(h('button', { class: 'btn', text: scan.auto ? 'Tạm dừng tự chuyển' : 'Bật tự chuyển', onclick: function () { scan.auto = !scan.auto; scan.left = 5; paintCtl(); paintStatus(); } }));
+      ctl.appendChild(h('button', { class: 'btn danger', text: 'Dừng', onclick: function () { stopScan(); st.textContent = 'Đã dừng dò.'; paintCtl(); } }));
+    }
+    function go(i) {
+      if (!scan) return;
+      if (i >= scan.list.length) {
+        stopScan(); st.style.color = 'var(--err)';
+        st.textContent = 'Đã thử hết ' + list.length + ' bộ mã của hãng này mà TV không phản ứng. Kiểm tra: TV đang bật, mắt phát hướng đúng, hoặc thử hãng khác / nhập mã thủ công (mục 4).';
+        paintCtl(); return;
+      }
+      if (i < 0) i = 0;
+      var r = Bridge.send(scan.list[i].spec);
+      if (r.status !== 'sent') { stopScan(); st.style.color = 'var(--err)'; st.textContent = r.message; paintCtl(); return; }
+      scan.i = i; scan.left = 5; Bridge.vibrate(10); paintCtl(); paintStatus();
+    }
+    function start() {
+      if (!native) { st.style.color = 'var(--err)'; st.textContent = 'Cần APK có Native Bridge để dò tự động.'; return; }
+      scan = { list: list, i: -1, auto: true, left: 5 };
+      paintCtl(); go(0);
+    }
+    function hit() {
+      if (!scan) return;
+      var c = scan.list[scan.i], en = c.entries[0];
+      stopScan();
+      var n = applyEntry(en, true);
+      setup.libBrand = brand; setup.libIdx = LIB.entries.indexOf(en); setup.altSig = c.sig;
+      setup.libNote = [true, 'Tìm thấy! Đã nạp ' + n + ' nút từ bộ «' + en.model + '» (nút Nguồn đã được bạn xác nhận). Thử vài nút khác ở mục 5. Nếu có nút sai, chọn bộ có ★ khác trong danh sách và nạp lại.'];
+      refresh();
+    }
+    viewTimers.push(setInterval(function () {
+      if (!scan || !scan.auto) return;
+      scan.left--;
+      if (scan.left <= 0) go(scan.i + 1); else paintStatus();
+    }, 1000));
+
+    card.appendChild(h('div', { style: 'margin-top:14px;border-top:1px solid var(--line);padding-top:12px' },
+      h('h3', { text: 'Dò tự động' }),
+      h('p', { class: 'muted small', text: 'Bật TV, hướng cạnh trên của điện thoại (mắt phát IR) vào TV. App lần lượt gửi lệnh Nguồn của từng bộ mã trong hãng đã chọn. Ngay khi TV phản ứng (tắt hoặc tối màn hình), bấm "TV đã phản ứng". Nếu bấm chậm và TV đã bật lại, dùng "◀ Bộ trước".' }),
+      ctl, st));
+    paintCtl();
+    if (!list.length) { st.style.color = 'var(--warn)'; st.textContent = 'Hãng này chưa có mã Nguồn trong thư viện nên không dò tự động được. Hãy nạp một bộ mã ở trên (rồi thử từng nút) hoặc nhập mã thủ công ở mục 4.'; }
+    return card;
+  }
+
   function viewSetup() {
     var devs = Store.devices();
+    scan = null;
     if (!setup.devId || !Store.get(setup.devId)) setup.devId = null;
     if (currentSetupDev && Store.get(currentSetupDev) && currentSetupDev !== setup.devId) { loadWork(currentSetupDev); }
     currentSetupDev = null;
@@ -481,21 +624,25 @@
     card2.appendChild(sel);
     root.appendChild(card2);
 
-    /* 3. Nhập mã */
-    var tabs = [['flipper', 'Flipper .ir'], ['proto', 'Giao thức'], ['pronto', 'Pronto'], ['raw', 'Raw'], ['json', 'JSON thư viện']];
+    /* 3. Thư viện dựng sẵn + dò tự động */
+    var libBrands = brandsFor(dev.type);
+    if (libBrands.length) root.appendChild(libraryCard(dev, libBrands));
+
+    /* 4. Nhập mã thủ công */
+    var tabs =[['flipper', 'Flipper .ir'], ['proto', 'Giao thức'], ['pronto', 'Pronto'], ['raw', 'Raw'], ['json', 'JSON thư viện']];
     var seg = h('div', { class: 'seg' }, tabs.map(function (t) { return h('button', { class: setup.tab === t[0] ? 'on' : '', text: t[1], onclick: function () { setup.tab = t[0]; refresh(); } }); }));
     var msg = h('p', { class: 'small', 'aria-live': 'polite' });
     function say(ok, t) { msg.style.color = ok ? 'var(--ok)' : 'var(--err)'; msg.textContent = t; }
     function done() { refresh(); }
     var form = importForm(dev, say, done);
-    root.appendChild(h('div', { class: 'card' }, h('h3', { text: '3. Nhập mã IR' }),
+    root.appendChild(h('div', { class: 'card' }, h('h3', { text: '4. Nhập mã IR thủ công' }),
       h('p', { class: 'muted small', text: 'Điện thoại không có mắt thu IR nên không "học" trực tiếp từ remote. Hãy import mã từ nguồn xác thực (ví dụ tệp Flipper-IRDB) hoặc nhập mã bạn biết, rồi thử từng nút.' }), seg, form, msg));
 
-    /* 4. Thử từng nút */
+    /* 5. Thử từng nút */
     var native = Bridge.mode() === 'native';
-    var card4 = h('div', { class: 'card' }, h('h3', { text: '4. Thử từng nút' }));
+    var card4 = h('div', { class: 'card' }, h('h3', { text: '5. Thử từng nút' }));
     var keys = Object.keys(setup.work).sort();
-    if (!keys.length) card4.appendChild(h('div', { class: 'empty', text: 'Chưa có mã nào. Hãy nhập mã ở bước 3.' }));
+    if (!keys.length) card4.appendChild(h('div', { class: 'empty', text: 'Chưa có mã nào. Hãy chọn bộ mã ở mục 3 hoặc nhập mã ở mục 4.' }));
     else {
       if (!native) card4.appendChild(h('p', { class: 'small', style: 'color:var(--demo)', text: 'Chế độ Demo: có thể bấm "Thử" nhưng sẽ không phát IR, và không thể xác nhận nút hoạt động.' }));
       var tb = h('table');
@@ -519,14 +666,14 @@
     }
     root.appendChild(card4);
 
-    /* 5. Lưu */
+    /* 6. Lưu */
     var anyOk = Object.keys(setup.work).some(function (k) { return setup.work[k].verified === true; });
     function commit() {
       var okSave = Store.update(setup.devId, { codes: clone(setup.work), source: setup.src.join('; ') });
       if (Store.error()) { toast('err', Store.error()); return; }
       if (okSave) { setup.dirty = false; toast('ok', 'Đã lưu cấu hình thiết bị.'); refresh(); }
     }
-    root.appendChild(h('div', { class: 'card' }, h('h3', { text: '5. Lưu cấu hình' }),
+    root.appendChild(h('div', { class: 'card' }, h('h3', { text: '6. Lưu cấu hình' }),
       h('p', { class: 'muted small', text: setup.dirty ? 'Có thay đổi chưa lưu.' : 'Không có thay đổi chưa lưu.' }),
       h('button', { class: 'btn primary block', text: 'Lưu cấu hình (đã kiểm tra thành công)', disabled: !(setup.dirty && anyOk && native), onclick: commit }),
       h('p', { class: 'muted small', text: native ? 'Chỉ bật khi ít nhất một nút đã được bạn xác nhận hoạt động (✓).' : 'Cần chế độ Native và xác nhận ít nhất một nút hoạt động.' }),

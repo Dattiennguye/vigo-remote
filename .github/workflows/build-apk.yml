@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Chạy kiểm thử bộ mã hóa IR
-        run: node tests/protocols.test.js
+        run: |
+          node tests/protocols.test.js
+          node tests/library.test.js
 
       - name: Đồng bộ giao diện web vào assets Android
         run: bash tools/sync-web.sh

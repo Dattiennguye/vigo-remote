@@ -29,7 +29,7 @@ t('thêm thiết bị TV qua Store và mở remote', () => {
   w.location.hash = '#device/' + dev.id; w.dispatchEvent(new w.HashChangeEvent('hashchange'));
   assert.ok(txt(w).includes('TV <b>test</b>'), 'tên phải hiển thị như văn bản, không là HTML');
   assert.strictEqual(q(w, 'h1 b'), null);
-  assert.strictEqual(qa(w, '.rb').length, 27);
+  assert.strictEqual(qa(w, '.rb').length, 28);
 });
 t('bấm nút khi chưa có mã → báo lỗi rõ ràng, không báo thành công', () => {
   q(w, '.rb.pwr').click();
@@ -106,5 +106,90 @@ t('native: AC bật thành công mới đổi trạng thái', () => {
   assert.strictEqual(w.VigoStore.get(ac.id).state.power, true);
 });
 t('không có lỗi script nào ở chế độ Native', () => assert.strictEqual(w.__errs.length, 0, String(w.__errs)));
+
+/* ---- Thư viện + dò tự động (Native giả lập) ---- */
+{
+  const sent = [];
+  const w3 = boot({
+    hasIrEmitter: () => JSON.stringify({ ok: true, available: true }),
+    getCarrierFrequencies: () => JSON.stringify({ ok: true, ranges: [[30000, 60000]] }),
+    transmit: (f, p) => { sent.push([f, JSON.parse(p)]); return JSON.stringify({ ok: true }); }, vibrate: () => {}
+  });
+  const LIB = w3.VIGO_LIBRARY;
+  t('form thêm TV: chọn hãng Samsung → có danh sách bộ mã, mặc định chọn sẵn bộ đầu', () => {
+    qa(w3, '.btn.primary').find(b => b.textContent.includes('Thêm thiết bị')).click();
+    const sels = qa(w3, '#sheet select');
+    const brand = sels[1]; brand.value = 'Samsung'; brand.dispatchEvent(new w3.Event('change'));
+    const lib = qa(w3, '#sheet select')[2];
+    assert.ok(lib.options.length > 10, 'phải có nhiều bộ mã Samsung');
+    assert.notStrictEqual(lib.value, '', 'phải chọn sẵn một bộ mã thật');
+    qa(w3, '#sheet input')[0].value = 'TV Samsung';
+    qa(w3, '#sheet button.primary').click ? null : null;
+    qa(w3, '#sheet button').find(b => b.textContent === 'Lưu').click();
+    const d = w3.VigoStore.devices()[0];
+    assert.strictEqual(d.brand, 'Samsung'); assert.ok(Object.keys(d.codes).length >= 4);
+    assert.ok(w3.location.hash.startsWith('#device/'), 'chuyển thẳng tới remote');
+  });
+  t('remote TV từ thư viện: bấm Nguồn → transmit đúng mã của thư viện', () => {
+    const d = w3.VigoStore.devices()[0];
+    w3.dispatchEvent(new w3.HashChangeEvent('hashchange'));
+    const want = w3.VigoIR.encode(d.codes.power.spec);
+    qa(w3, '.rb.pwr')[0].click();
+    const last = sent[sent.length - 1];
+    assert.strictEqual(last[0], want.freq);
+    assert.strictEqual(last[1].slice(0, want.pattern.length).join(','), want.pattern.join(','));
+    assert.ok(q(w3, '#toast').className.includes('ok'));
+  });
+  t('IR Setup: dò tự động gửi lần lượt Nguồn từng bộ, bấm "đã phản ứng" thì nạp bộ mã và xác nhận Nguồn', () => {
+    const d = w3.VigoStore.devices()[0];
+    w3.VigoStore.update(d.id, { codes: {} });
+    w3.location.hash = '#setup'; w3.dispatchEvent(new w3.HashChangeEvent('hashchange'));
+    assert.ok(txt(w3).includes('3. Chọn hãng và dòng TV'));
+    const bsel = q(w3, 'select[aria-label="Hãng"]'); bsel.value = 'LG'; bsel.dispatchEvent(new w3.Event('change'));
+    const before = sent.length;
+    qa(w3, 'button').find(b => b.textContent.startsWith('Bắt đầu dò')).click();
+    assert.strictEqual(sent.length, before + 1, 'gửi đúng 1 lệnh cho bộ đầu tiên');
+    const first = sent[sent.length - 1];
+    qa(w3, 'button').find(b => b.textContent === 'Bộ tiếp ▶').click();
+    assert.strictEqual(sent.length, before + 2);
+    assert.notStrictEqual(sent[sent.length - 1][1].join(), first[1].join(), 'bộ tiếp theo phải khác mã Nguồn');
+    qa(w3, 'button').find(b => b.textContent === '◀ Bộ trước').click();
+    assert.strictEqual(sent[sent.length - 1][1].join(), first[1].join(), 'bộ trước gửi lại đúng mã đầu');
+    qa(w3, 'button').find(b => b.textContent === 'TV đã phản ứng ✓').click();
+    assert.ok(txt(w3).includes('Tìm thấy!'));
+    const save = qa(w3, 'button').find(b => b.textContent.startsWith('Lưu cấu hình'));
+    assert.ok(!save.disabled, 'Nguồn đã xác nhận → cho phép lưu');
+    save.click();
+    const d2 = w3.VigoStore.get(d.id);
+    assert.ok(Object.keys(d2.codes).length >= 4); assert.strictEqual(d2.codes.power.verified, true);
+    assert.ok(/Flipper-IRDB/.test(d2.source));
+  });
+  t('dò tự động: hết bộ mà không phản ứng → báo rõ, không nạp gì', () => {
+    const d = w3.VigoStore.devices()[0];
+    w3.VigoStore.update(d.id, { codes: {} });
+    w3.location.hash = '#home'; w3.dispatchEvent(new w3.HashChangeEvent('hashchange'));
+    w3.location.hash = '#setup'; w3.dispatchEvent(new w3.HashChangeEvent('hashchange'));
+    const bsel = q(w3, 'select[aria-label="Hãng"]'); bsel.value = 'Akai'; bsel.dispatchEvent(new w3.Event('change'));
+    qa(w3, 'button').find(b => b.textContent.startsWith('Bắt đầu dò')).click();
+    for (let i = 0; i < 10 && qa(w3, 'button').some(b => b.textContent === 'Bộ tiếp ▶'); i++) qa(w3, 'button').find(b => b.textContent === 'Bộ tiếp ▶').click();
+    assert.ok(txt(w3).includes('Đã thử hết'));
+    assert.strictEqual(Object.keys(w3.VigoStore.get(d.id).codes).length, 0);
+  });
+  t('hãng không có mã Nguồn (Xiaomi): báo rõ, nút dò bị khóa', () => {
+    w3.location.hash = '#home'; w3.dispatchEvent(new w3.HashChangeEvent('hashchange'));
+    w3.location.hash = '#setup'; w3.dispatchEvent(new w3.HashChangeEvent('hashchange'));
+    const bsel = q(w3, 'select[aria-label="Hãng"]'); bsel.value = 'Xiaomi'; bsel.dispatchEvent(new w3.Event('change'));
+    const b = qa(w3, 'button').find(x => x.textContent.startsWith('Bắt đầu dò'));
+    assert.ok(b.disabled); assert.ok(txt(w3).includes('chưa có mã Nguồn'));
+  });
+  t('Demo: dò tự động bị khóa', () => {
+    const w4 = boot(null);
+    w4.VigoStore.add({ name: 'TV', type: 'tv', brand: 'Sony' });
+    w4.location.hash = '#setup'; w4.dispatchEvent(new w4.HashChangeEvent('hashchange'));
+    const b = qa(w4, 'button').find(x => x.textContent.startsWith('Bắt đầu dò'));
+    assert.ok(b && b.disabled);
+  });
+  t('không có lỗi script khi dùng thư viện', () => { assert.strictEqual(w3.__errs.length, 0, String(w3.__errs)); });
+}
 console.log('\n' + n + ' nhóm kiểm tra giao diện đạt.');
 process.exit(0);

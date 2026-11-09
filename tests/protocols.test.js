@@ -94,3 +94,33 @@ console.log('\n' + n + ' nhóm kiểm tra đạt.');
 const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'web', 'css', 'app.css'), 'utf8');
 assert.ok(/\[hidden\]\s*\{\s*display:\s*none\s*!important/.test(css), 'thiếu [hidden]{display:none!important}');
 console.log('ok  - CSS giữ thuộc tính hidden (không còn lớp phủ chặn thao tác)');
+
+/* ---- Kaseikyo: giải mã ngược theo công thức của bộ giải mã Flipper rồi so khớp trường ---- */
+function decodeKaseikyo(p) {
+  assert.deepStrictEqual(p.slice(0, 2), [3456, 1728]);
+  const bits = [];
+  for (let i = 0; i < 48; i++) {
+    assert.strictEqual(p[2 + 2 * i], 432);
+    const sp = p[3 + 2 * i]; assert.ok(sp === 432 || sp === 1296); bits.push(sp === 1296 ? 1 : 0);
+  }
+  assert.strictEqual(p.length, 2 + 96 + 1); assert.strictEqual(p[p.length - 1], 432);
+  const d = []; for (let b = 0; b < 6; b++) { let v = 0; for (let i = 0; i < 8; i++) v |= bits[b * 8 + i] << i; d.push(v); }
+  const vendor = (d[1] << 8) | d[0], vp = d[2] & 0xF, g1 = d[2] >> 4, g2 = d[3] & 0xF;
+  const cmd = (d[3] >> 4) | ((d[4] & 0x3F) << 4), id = d[4] >> 6, par = d[5];
+  let vpc = d[0] ^ d[1]; vpc = (vpc & 0xF) ^ (vpc >> 4);
+  assert.strictEqual(vp, vpc, 'parity vendor sai'); assert.strictEqual(par, d[2] ^ d[3] ^ d[4], 'parity khung sai');
+  return { address: ((id << 24) | (vendor << 8) | (g1 << 4) | g2) >>> 0, command: cmd };
+}
+[[0x00200280, 0x3D0], [0x01000000 | (0x2002 << 8) | 0x20, 0x001], [0x03ABCDE5, 0x3FF], [0, 0]].forEach(([a, c]) => {
+  const r = decodeKaseikyo(IR.encode({ protocol: 'kaseikyo', address: a, command: c }).pattern);
+  assert.strictEqual(r.address, a); assert.strictEqual(r.command, c);
+});
+assert.strictEqual(IR.encode({ protocol: 'kaseikyo', address: 1, command: 1 }).freq, 38000);
+assert.throws(() => IR.encode({ protocol: 'kaseikyo', address: 0x4000000, command: 0 }));
+assert.throws(() => IR.encode({ protocol: 'kaseikyo', address: 0, command: 0x400 }));
+{
+  const r = IR.parseFlipperIr('name: Power\ntype: parsed\nprotocol: Kaseikyo\naddress: 80 02 20 00\ncommand: D0 03 00 00');
+  assert.strictEqual(r.ok.length, 1); assert.strictEqual(r.ok[0].spec.protocol, 'kaseikyo');
+  assert.strictEqual(r.ok[0].spec.address, 0x00200280); assert.strictEqual(r.ok[0].spec.command, 0x3D0);
+}
+console.log('ok  - Kaseikyo: mã hóa khớp ngược với bộ giải mã Flipper (parity, trường, thời gian)');

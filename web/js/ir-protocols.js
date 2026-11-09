@@ -62,6 +62,27 @@
         var bits = [].concat(lsb(a, 8), lsb(a, 8), lsb(c, 8), lsb(~c & 0xFF, 8));
         return [4500, 4500].concat(pulseDistance(bits, { mark: 560, zero: 560, one: 1690 }), [560]);
       }
+    },
+    /* Kaseikyo (Panasonic và một số hãng khác). Cách xếp trường theo định nghĩa của Flipper:
+     * address = (id << 24) | (vendor << 8) | (genre1 << 4) | genre2 ; command 10 bit.
+     * Khung 48 bit, LSB trước: vendor(16) | parity vendor(4) genre1(4) | genre2(4) command thấp(4) | command cao(6) id(2) | parity(8). */
+    kaseikyo: {
+      label: 'Kaseikyo (Panasonic)', freq: 38000, addrMax: 0x3FFFFFF, cmdMax: 0x3FF,
+      encode: function (s) {
+        var a = hexInt(s.address), c = hexInt(s.command);
+        checkRange('Địa chỉ', a, 0x3FFFFFF); checkRange('Lệnh', c, 0x3FF);
+        var id = (a >>> 24) & 3, vendor = (a >>> 8) & 0xFFFF, g1 = (a >>> 4) & 0xF, g2 = a & 0xF;
+        var d = [];
+        d[0] = vendor & 0xFF; d[1] = vendor >>> 8;
+        var vp = d[0] ^ d[1]; vp = (vp & 0xF) ^ (vp >>> 4);
+        d[2] = (vp & 0xF) | (g1 << 4);
+        d[3] = (g2 & 0xF) | ((c & 0xF) << 4);
+        d[4] = (id << 6) | (c >>> 4);
+        d[5] = d[2] ^ d[3] ^ d[4];
+        var bits = [];
+        d.forEach(function (byte) { bits = bits.concat(lsb(byte, 8)); });
+        return [3456, 1728].concat(pulseDistance(bits, { mark: 432, zero: 432, one: 1296 }), [432]);
+      }
     }
   };
 
@@ -154,7 +175,7 @@
     return v;
   }
 
-  var FLIPPER_MAP = { NEC: 'nec', NECext: 'necext', Samsung32: 'samsung32', SIRC: 'sirc12', SIRC15: 'sirc15', SIRC20: 'sirc20' };
+  var FLIPPER_MAP = { NEC: 'nec', NECext: 'necext', Samsung32: 'samsung32', SIRC: 'sirc12', SIRC15: 'sirc15', SIRC20: 'sirc20', Kaseikyo: 'kaseikyo' };
 
   function parseFlipperIr(text) {
     var records = [], cur = null;

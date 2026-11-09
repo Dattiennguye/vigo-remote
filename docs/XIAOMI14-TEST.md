@@ -10,7 +10,16 @@
 - [ ] Tắt hẳn app rồi mở lại: thiết bị và lịch sử vẫn còn.
 - [ ] Bật chế độ máy bay / tắt Wi-Fi và dữ liệu: mọi chức năng điều khiển vẫn dùng được.
 
-## B. Nhập mã và thử từng nút (cần một TV thật và mã từ nguồn xác thực)
+## B0. Thư viện dựng sẵn và dò tự động (cần một TV thật)
+- [ ] Thêm thiết bị → chọn hãng TV của bạn → danh sách dòng/remote hiện ra, có bộ chọn sẵn; Lưu → mở remote.
+- [ ] Bấm Nguồn, âm lượng, kênh: TV phản ứng (nếu không, thử bộ khác hoặc dò tự động).
+- [ ] IR Setup → mục 3 → **Bắt đầu dò**: app gửi lệnh Nguồn từng bộ (cứ 5 giây chuyển bộ); khi TV phản ứng, bấm "TV đã phản ứng ✓" → báo "Tìm thấy!" và nạp bộ mã.
+- [ ] "◀ Bộ trước", "Gửi lại", "Bộ tiếp ▶", "Tạm dừng tự chuyển", "Dừng" đều hoạt động.
+- [ ] Sau khi dò: thử vài nút khác, bấm "Lưu cấu hình"; thoát/mở lại app, thiết bị còn nguyên.
+- [ ] Nếu nút sai, chọn bộ có ★ trong danh sách (cùng mã Nguồn) rồi nạp lại.
+- [ ] Ghi lại hãng, remote đã khớp và model TV để đối chiếu.
+
+## B. Nhập mã thủ công và thử từng nút (cần một TV thật)
 - [ ] Thêm thiết bị TV, đặt tên tùy chỉnh, chọn hãng, nhập model.
 - [ ] Import tệp `.ir` bằng nút chọn tệp (nếu chọn tệp không được, dùng dán nội dung).
 - [ ] Báo cáo import nêu đúng số mã nhập và số mã bị bỏ qua.
