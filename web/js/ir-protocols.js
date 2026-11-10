@@ -122,10 +122,42 @@
     });
   }
 
+  /* Broadlink IR (header 0x26) -> µs. Tick = 269/8192 ms. Tần số sóng mang không có trong khung: dùng 38 kHz. */
+  function b64bytes(s) {
+    var clean = String(s).replace(/\s+/g, '');
+    if (!/^[A-Za-z0-9+\/]+={0,2}$/.test(clean)) throw new Error('Chuỗi Base64 không hợp lệ');
+    if (typeof atob === 'function') {
+      var bin = atob(clean), out = new Array(bin.length);
+      for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+    return Array.prototype.slice.call(Buffer.from(clean, 'base64'));
+  }
+
+  function decodeBroadlink(b64) {
+    var b = b64bytes(b64);
+    if (b.length < 8 || b[0] !== 0x26) throw new Error('Không phải khung IR Broadlink (0x26)');
+    var n = b[2] | (b[3] << 8);
+    if (4 + n > b.length || n < 6) throw new Error('Khung Broadlink bị cụt');
+    var out = [], i = 4, end = 4 + n;
+    if (b[end - 2] !== 0x0d || b[end - 1] !== 0x05) throw new Error('Khung Broadlink thiếu đoạn kết thúc');
+    while (i < end) {
+      var v;
+      if (b[i] === 0) {
+        if (i + 2 >= end) throw new Error('Khung Broadlink hỏng');
+        v = (b[i + 1] << 8) | b[i + 2]; i += 3;
+      } else { v = b[i]; i += 1; }
+      out.push(Math.round(v * 269 / 8192 * 1000));
+    }
+    return out;
+  }
+
   function encode(spec) {
     if (!spec || typeof spec !== 'object') throw new Error('Thiếu thông tin mã IR');
     var freq, pattern;
-    if (spec.protocol === 'raw') {
+    if (spec.protocol === 'broadlink') {
+      freq = 38000; pattern = decodeBroadlink(spec.data);
+    } else if (spec.protocol === 'raw') {
       freq = Number(spec.freq); pattern = (spec.pattern || []).map(Number);
     } else if (PROTOCOLS[spec.protocol]) {
       var p = PROTOCOLS[spec.protocol];
@@ -211,7 +243,7 @@
 
   var api = {
     PROTOCOLS: PROTOCOLS, encode: encode, validatePattern: validatePattern,
-    parseProntoHex: parseProntoHex, parseRawPattern: parseRawPattern, parseFlipperIr: parseFlipperIr, hexInt: hexInt
+    parseProntoHex: parseProntoHex, parseRawPattern: parseRawPattern, parseFlipperIr: parseFlipperIr, hexInt: hexInt, decodeBroadlink: decodeBroadlink
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VigoIR = api;

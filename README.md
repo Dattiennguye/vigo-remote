@@ -1,27 +1,34 @@
-# VIGO Universal Remote
+# VIGO Remote 2.0
 
-Ứng dụng điều khiển từ xa hồng ngoại cho Android: giao diện HTML/CSS/JS thuần (tiếng Việt, nền tối, ngoại tuyến, không tài khoản) + lớp Android Native Bridge để phát IR thật.
+Ứng dụng điều khiển từ xa hồng ngoại cho Android: giao diện HTML/CSS/JS thuần (tiếng Việt, nền tối, ngoại tuyến, không tài khoản, không quảng cáo) + lớp Android Native Bridge để phát IR thật.
+
+## Trải nghiệm
+- Mở app → vào ngay **Điều khiển**. Menu chỉ có 2 mục: **Điều khiển** và **Cài đặt**.
+- Điều khiển TV tối giản, đặt thấp cho ngón cái: lên/xuống/trái/phải + OK, Quay lại / Trang chủ / Thoát, Âm lượng ± và Tắt tiếng, Nguồn. Phím phụ (Menu, Kênh, số…) nằm sau nút “⋯”.
+- Điều hòa: nhiệt độ ±, chế độ, quạt, đảo gió, nguồn, hẹn giờ tắt; mã thật từ 373 bộ mã / 137 hãng.
+- Rung khi bấm (bật/tắt + 3 mức), giữ để lặp, giảm chuyển động, giữ màn hình sáng, dùng phím âm lượng của máy chỉnh TV.
+- Không ghi lịch sử thao tác.
 
 ## Cấu trúc
 ```
 web/                 Giao diện (nguồn duy nhất): index.html, css/, js/, data/
-  js/ir-protocols.js   Bộ mã hóa NEC, NECext, Samsung32, SIRC, Kaseikyo, Pronto, Raw, parser Flipper .ir
+  js/ir-protocols.js   NEC, NECext, Samsung32, SIRC, Kaseikyo, Broadlink, Pronto, Raw, parser Flipper .ir
   js/ir-bridge.js      IR Bridge: Native hoặc Demo (không bao giờ giả lập phát)
-  js/store.js          Lưu thiết bị và lịch sử (localStorage)
-  js/app.js            Các màn hình
-  data/ir-library.js   Thư viện 190 bộ mã TV (tạo tự động từ Flipper-IRDB, CC0)
+  js/library.js        Nạp thư viện mã theo hãng (lazy)
+  js/ac-engine.js      Máy trạng thái điều hòa
+  js/store.js          Thiết bị + cài đặt (localStorage)
+  js/ui.js, control.js, settings.js, app.js
+  data/tv, data/ac     Thư viện mã (tạo tự động, xem docs/IR-LIBRARY.md)
 android/             Dự án Gradle: WebView + ConsumerIrManager (IrBridge.java)
-tests/               Kiểm thử bộ mã hóa và giao diện (Node)
-tools/               sync-web.sh, build-library.py, native-probe.html
+tests/               protocols + library (Node, chạy trong CI); ui-browser (Chromium/playwright, chạy cục bộ)
+tools/               sync-web.sh, build-library.py, build-ac-library.py, native-probe.html
 docs/                STATUS, NATIVE-BRIDGE, BUILD-APK, XIAOMI14-TEST, IR-LIBRARY
-.github/workflows/   build-apk.yml
 ```
 
 ## Bắt đầu nhanh
-- Tạo APK: xem `docs/BUILD-APK.md` (GitHub Actions là cách nhanh nhất).
-- Chạy thử giao diện trên máy tính: mở `web/index.html` (chế độ Demo, không phát IR).
-- Kiểm thử: `node tests/protocols.test.js` và `node tests/library.test.js`.
-- Dùng: Thêm thiết bị → chọn hãng/dòng; không biết dòng nào thì IR Setup → Dò tự động.
+- Tạo APK: `docs/BUILD-APK.md` (GitHub Actions → artifact **VIGO-Remote-apk**).
+- Thử giao diện trên máy tính: mở `web/index.html` (chế độ Demo, không phát IR).
+- Kiểm thử: `node tests/protocols.test.js && node tests/library.test.js`; giao diện: `NODE_PATH=$(npm root -g) node tests/ui-browser.test.js`.
 
 ## Đọc trước
-`docs/STATUS.md` nói rõ chức năng nào chạy thật, chức năng nào là Demo, và những gì **chưa được kiểm chứng trên phần cứng**.
+`docs/STATUS.md`: chức năng nào chạy thật, chức năng nào chỉ là Demo, và những gì **chưa được kiểm chứng trên phần cứng**.

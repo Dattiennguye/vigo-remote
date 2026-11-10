@@ -8,7 +8,10 @@ Giao diện tìm đối tượng `window.VigoNative` (xem `web/js/ir-bridge.js`)
 | `hasIrEmitter()` | `{"ok":true,"available":true}` hoặc `{"ok":false,"error":"..."}` |
 | `getCarrierFrequencies()` | `{"ok":true,"ranges":[[30000,60000]]}` |
 | `transmit(freqHz:int, patternJson:string)` | `{"ok":true}` hoặc `{"ok":false,"error":"..."}` |
-| `vibrate(ms:int)` | không trả về (tùy chọn) |
+| `haptic(kind:string)` | không trả về. `tick` / `click` / `heavy` / `error` (VibrationEffect predefined trên Android 10+) |
+| `setVolumeKeys(enabled:bool)` | `{"ok":true}`. Bật thì phím âm lượng vật lý được chặn và gửi `window.__vigoKey('vol_up'\|'vol_down')` |
+| `keepScreenOn(enabled:bool)` | `{"ok":true}`. Giữ màn hình sáng (FLAG_KEEP_SCREEN_ON) |
+| `vibrate(ms:int)` | không trả về (cũ, còn giữ để tương thích) |
 
 `patternJson` là mảng số nguyên micro giây, xen kẽ bật/tắt, bắt đầu bằng xung bật. Nếu `window.VigoNative` không tồn tại, giao diện chạy chế độ Demo và không bao giờ báo đã gửi.
 
@@ -29,11 +32,11 @@ Không được giả định công cụ có bridge. Kiểm tra:
    <uses-feature android:name="android.hardware.consumerir" android:required="false"/>
    ```
 2. Sao chép `IrBridge.java`, đổi `package` cho khớp.
-3. Trong Activity: `webView.getSettings().setJavaScriptEnabled(true); setDomStorageEnabled(true); webView.addJavascriptInterface(new IrBridge(this), "VigoNative");`
+3. Trong Activity: `webView.getSettings().setJavaScriptEnabled(true); setDomStorageEnabled(true); webView.addJavascriptInterface(new IrBridge(this, host), "VigoNative")` (`host` cài `IrBridge.Host` — xem `MainActivity` cho `setVolumeKeys`/`setKeepScreenOn`/`onKeyDown`) `;`
 4. Chỉ nạp nội dung cục bộ (`file:///android_asset/...`) vào WebView có bridge, và chặn điều hướng ra ngoài (xem `MainActivity.shouldOverrideUrlLoading`), vì mọi trang trong WebView đó đều gọi được `VigoNative`.
 
 ## Thêm giao thức mới
-Thêm một mục vào `VigoIR.PROTOCOLS` trong `web/js/ir-protocols.js` với `label`, `freq` và `encode(spec)` trả về mảng micro giây; thêm test trong `tests/protocols.test.js`. Cần thêm hãng: thêm tên vào `brands` trong `web/data/ir-library.js`.
+Thêm một mục vào `VigoIR.PROTOCOLS` trong `web/js/ir-protocols.js` với `label`, `freq` và `encode(spec)` trả về mảng micro giây; thêm test trong `tests/protocols.test.js`. Thêm hãng TV: sửa danh sách `BRANDS` trong `tools/build-library.py` rồi chạy lại (xem `IR-LIBRARY.md`). Mã điều hòa dạng Broadlink dùng giao thức `{protocol:'broadlink', data:'<Base64>'}`.
 
 ## Hẹn giờ native (tùy chọn)
-Hẹn giờ hiện chạy trong JavaScript nên cần giữ app mở. Muốn hẹn giờ khi app đóng: thêm `AlarmManager` + `BroadcastReceiver` gọi `ConsumerIrManager.transmit` trực tiếp (cần quyền báo thức chính xác trên Android 12+).
+Hẹn giờ tắt điều hòa hiện chạy trong JavaScript nên cần giữ app mở (có thể khóa màn hình ở một số máy, nhưng nếu hệ thống đóng app thì lệnh không được gửi). Muốn hẹn giờ khi app đóng: thêm `AlarmManager` + `BroadcastReceiver` gọi `ConsumerIrManager.transmit` trực tiếp (cần quyền báo thức chính xác trên Android 12+).

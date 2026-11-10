@@ -1,44 +1,32 @@
 # Thư viện mã IR
 
-## Nguồn và giấy phép
-Thư viện dựng sẵn (`web/data/ir-library.js`, hiện 190 bộ mã TV) được **tạo tự động** từ [Flipper-IRDB](https://github.com/logickworkshop/Flipper-IRDB), giấy phép **CC0-1.0** (công khai, dùng thương mại được, không bắt buộc ghi nguồn; app vẫn ghi nguồn cho từng bộ). Mỗi mục trong thư viện ghi rõ tệp nguồn (`source.files`) và commit đã dùng. App **không tự tạo mã**.
+App **không tự tạo mã**. Mọi mã trong thư viện được chuyển nguyên văn từ hai dự án mở; mỗi bộ mã ghi rõ tệp nguồn (`source.files`) và giấy phép.
 
-Hãng có sẵn: Samsung, LG, Sony, TCL, Hisense, Xiaomi, Panasonic, Sharp, Toshiba, cùng Philips, Sanyo, Hitachi, Haier, JVC, Daewoo, Akai, Android (tùy hãng, số bộ mã khác nhau).
+| Loại | Nguồn | Giấy phép | Quy mô |
+|---|---|---|---|
+| TV | [Flipper-IRDB](https://github.com/logickworkshop/Flipper-IRDB) (commit `d126fb1b`) | CC0-1.0 | 189 bộ mã, 17 hãng, ~5.600 mã |
+| Điều hòa | [SmartIR](https://github.com/smartHomeHub/SmartIR) `codes/climate` | MIT | 373 bộ mã, 137 hãng, ~141.000 mã |
 
-## Cách app dùng thư viện
-- **Thêm thiết bị**: chọn hãng, rồi chọn dòng/remote (bộ phổ biến nhất được chọn sẵn). Lưu xong là điều khiển được ngay.
-- **IR Setup → mục 3**: nạp bộ mã khác, hoặc **Dò tự động**: app gửi lần lượt lệnh Nguồn của từng bộ mã trong hãng; khi TV phản ứng, bạn bấm "TV đã phản ứng" và app nạp bộ mã đó.
-- Thư viện **đánh số theo remote** (ví dụ `BN59-01315B`), không theo tên model TV (ví dụ `UA55AU7000`), vì nguồn dữ liệu là remote. Vì vậy dò tự động hữu ích khi bạn không biết remote nào.
+Giấy phép MIT của SmartIR yêu cầu giữ thông báo bản quyền: xem `THIRD-PARTY-LICENSES.md`.
 
-## Giới hạn cần biết
-- Mã do cộng đồng đóng góp, **chưa được kiểm chứng trên TV của bạn**: luôn thử từng nút.
-- Chưa hỗ trợ các giao thức RC5, RC6, RC5X, RCA: các nút dùng giao thức này bị bỏ qua khi tạo thư viện (ảnh hưởng chính: Philips, một số TCL/Toshiba/Hitachi/JVC).
-- Bộ Xiaomi TV trong nguồn **không có nút Nguồn** (nên không dò tự động được); các nút khác dùng bình thường.
-- Chưa có thư viện điều hòa (mã điều hòa là khung trạng thái theo hãng, phức tạp hơn). Điều hòa vẫn nhập mã thủ công được.
-- Casper không có trong nhóm TV của nguồn.
+## TV (`web/data/tv/`)
+- `index.js` (nhẹ, có sẵn khi mở app) + một tệp cho mỗi hãng, nạp khi bạn chọn hãng.
+- Mỗi bộ: `{brand, model, models[], core, source, codes{khóa → {spec, label?}}}`.
+- Tên nút được chuẩn hóa về khóa chuẩn: `power, mute, vol_up, vol_down, up, down, left, right, ok, back, home, exit, menu, source, ch_up, ch_down, 0–9…` (xử lý các biến thể như `Enter_OK`, `Vol_plus`, `Chan_up`).
+- `core` = số phím chính (trong 12 phím của màn hình điều khiển) mà bộ mã có. Bộ đủ 12/12 và có nhiều remote cùng mã Nguồn được xếp lên đầu.
+- Bộ ít hơn 4 phím bị loại; giao thức app chưa mã hóa được (RC5, RC6, RCA…) bị bỏ qua.
+- Dựng lại: `python3 -I tools/build-library.py <Flipper-IRDB> web/data/tv <commit>`.
 
-## Tạo lại thư viện
-```bash
-git clone --depth 1 https://github.com/logickworkshop/Flipper-IRDB.git
-python3 -I tools/build-library.py ./Flipper-IRDB web/data/ir-library.js "$(git -C Flipper-IRDB rev-parse HEAD)"
-node tests/library.test.js     # kiểm tra mọi mã đều mã hóa được
-bash tools/sync-web.sh
-```
-Muốn thêm hãng: thêm tên vào `BRANDS` trong `tools/build-library.py`. Muốn thêm giao thức: xem `NATIVE-BRIDGE.md` mục "Thêm giao thức mới".
+## Điều hòa (`web/data/ac/`)
+- Điều hòa gửi **toàn bộ trạng thái** (chế độ, nhiệt độ, quạt, đảo gió) trong mỗi lệnh. SmartIR lưu sẵn một mã cho từng tổ hợp: `commands[chế_độ][quạt]([đảo_gió])[nhiệt_độ]` và `commands.off`.
+- Chỉ dùng tệp Broadlink/Base64 (396 tệp). Giải mã Broadlink → xung IR: tick = 269/8192 ms; khung không có tần số sóng mang nên app **giả định 38 kHz**.
+- Mỗi mã được giải mã và kiểm tra cấu trúc khi dựng; mã cụt/hỏng (~6% trong nguồn) bị loại, không vá.
+- Bỏ qua 28 tệp: Xiaomi/Raw (13), ESPHome/Raw (14), LOOKin/Raw (1) — định dạng khác, chưa chuyển đổi.
+- Các tệp có bộ lệnh giống hệt được gộp (gộp danh sách model).
+- `index.js` (~270 KB) nạp khi bạn chọn Điều hòa; từng bộ mã nạp riêng khi chọn/dùng (lớn nhất ~3 MB).
+- Dựng lại: `python3 -I tools/build-ac-library.py <SmartIR>/codes/climate web/data/ac <commit>`.
 
-## Cấu trúc một mục
-```json
-{
-  "brand": "Samsung", "model": "tên remote", "models": ["tên remote", "..."], "type": "tv",
-  "source": { "name": "Flipper-IRDB", "license": "CC0-1.0", "url": "...", "files": ["..."] },
-  "codes": {
-    "power": { "spec": { "protocol": "samsung32", "address": 7, "command": 2 } },
-    "netflix": { "label": "Netflix", "spec": { "protocol": "raw", "freq": 38000, "pattern": [4500, 4500] } }
-  }
-}
-```
-Giao thức: `nec, necext, samsung32, sirc12, sirc15, sirc20, kaseikyo, raw`.
-Khóa chuẩn TV: `power, vol_up, vol_down, mute, ch_up, ch_down, up, down, left, right, ok, back, home, menu, source, 0–9, src_hdmi, src_av, src_tv`. Khóa khác hiện ở mục "Lệnh đã nhập" của remote.
-
-## Mã riêng của bạn
-Import trong IR Setup mục 4 (Flipper `.ir`, Pronto, giao thức, raw, JSON) và thử từng nút. Mã bạn đã xác nhận (✓) được lưu cùng thiết bị.
+## Giới hạn trung thực
+- Mã là dữ liệu cộng đồng, **chưa được kiểm chứng trên mọi model**. Luôn dùng nút Thử trước khi chọn bộ mã.
+- Mã điều hòa Casper được SmartIR ghi là tương thích Gree — chưa xác minh.
+- Điều hòa không báo trạng thái ngược lại: app chỉ nhớ lệnh đã gửi cuối cùng. Nếu bạn đổi bằng remote gốc, hiển thị trong app có thể lệch.

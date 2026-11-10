@@ -4,24 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#0B0D12">
-<title>VIGO Universal Remote</title>
+<meta name="color-scheme" content="dark">
+<title>VIGO Remote</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<div id="banner" class="banner" hidden></div>
-<main id="app" aria-live="polite"></main>
-<nav id="nav" class="nav" aria-label="Điều hướng chính">
-  <a href="#home" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Trang chủ</span></a>
-  <a href="#devices" data-tab="devices"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="7" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="17" r="1.6"/></svg><span>Thiết bị</span></a>
-  <a href="#setup" data-tab="setup"><svg viewBox="0 0 24 24"><path d="M4 8c4-4 12-4 16 0M7 11.5c2.7-2.5 7.3-2.5 10 0M10 15c1.2-1 2.8-1 4 0"/><circle cx="12" cy="18.5" r="1.4"/></svg><span>IR Setup</span></a>
-</nav>
-<div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
-<div id="sheet" class="sheet" hidden></div>
-
-<script src="data/ir-library.js"></script>
-<script src="js/ir-protocols.js"></script>
-<script src="js/ir-bridge.js"></script>
-<script src="js/store.js"></script>
-<script src="js/app.js"></script>
+<div id="shell">
+  <main id="views">
+    <section id="view-control" class="view" aria-label="Điều khiển"></section>
+    <section id="view-settings" class="view" aria-label="Cài đặt"></section>
+  </main>
+  <nav id="tabbar" role="tablist" aria-label="Điều hướng chính" data-tab="control">
+    <span class="ind" aria-hidden="true"></span>
+    <button type="button" role="tab" data-tab-btn="control" class="on" aria-selected="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="3"/><path d="M12 7h.01M12 11.5h.01M12 16h.01"/></svg><span>Điều khiển</span>
+    </button>
+    <button type="button" role="tab" data-tab-btn="settings" aria-selected="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg><span>Cài đặt</span>
+    </button>
+  </nav>
+  <div id="page-root"></div>
+  <div id="sheet-root"></div>
+  <div id="toast" class="toast" role="status" aria-live="assertive" hidden></div>
+</div>
+<div id="splash" aria-hidden="true">
+  <div class="logo">
+    <svg viewBox="0 0 108 108" width="112" height="112">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2EE6C5"/><stop offset="1" stop-color="#6C7CFF"/></linearGradient></defs>
+      <path class="w w3" d="M43.1,27A17,17 0 0 1 64.9,27" fill="none" stroke="#6C7CFF" stroke-width="2.6" stroke-linecap="round"/>
+      <path class="w w2" d="M46.3,30.8A12,12 0 0 1 61.7,30.8" fill="none" stroke="#4FB8E0" stroke-width="2.6" stroke-linecap="round"/>
+      <path class="w w1" d="M49.5,34.6A7,7 0 0 1 58.5,34.6" fill="none" stroke="#2EE6C5" stroke-width="2.6" stroke-linecap="round"/>
+      <path class="body" d="M48,42h12a7,7 0 0 1 7,7v28a7,7 0 0 1 -7,7H48a7,7 0 0 1 -7,-7V49a7,7 0 0 1 7,-7z" fill="url(#g)"/>
+      <circle cx="54" cy="51.5" r="3.2" fill="#0B0D12"/><circle cx="54" cy="62" r="2.4" fill="#0B0D12"/><circle cx="54" cy="70" r="2.4" fill="#0B0D12"/><circle cx="54" cy="78" r="2.4" fill="#0B0D12"/>
+    </svg>
+    <div class="word">VIGO<span>Remote</span></div>
+  </div>
+</div>
+<script src="js/ir-protocols.js" defer></script>
+<script src="js/ir-bridge.js" defer></script>
+<script src="js/library.js" defer></script>
+<script src="data/tv/index.js" defer></script>
+<script src="js/ac-engine.js" defer></script>
+<script src="js/store.js" defer></script>
+<script src="js/ui.js" defer></script>
+<script src="js/control.js" defer></script>
+<script src="js/settings.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>

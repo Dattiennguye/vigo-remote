@@ -124,3 +124,26 @@ assert.throws(() => IR.encode({ protocol: 'kaseikyo', address: 0, command: 0x400
   assert.strictEqual(r.ok[0].spec.address, 0x00200280); assert.strictEqual(r.ok[0].spec.command, 0x3D0);
 }
 console.log('ok  - Kaseikyo: mã hóa khớp ngược với bộ giải mã Flipper (parity, trường, thời gian)');
+
+/* ---- Broadlink (điều hòa): khung 0x26, tick = 269/8192 ms, 0x00 + 2 byte BE cho khoảng dài ---- */
+{
+  const frame = (data) => Buffer.from([0x26, 0x00, data.length & 0xFF, data.length >> 8, ...data, 0, 0, 0]).toString('base64');
+  const r = IR.encode({ protocol: 'broadlink', data: frame([0x10, 0x10, 0x20, 0x00, 0x0d, 0x05, 0x10, 0x00, 0x0d, 0x05]) });
+  const tick = 269 / 8192 * 1000;
+  assert.strictEqual(r.freq, 38000);
+  assert.deepStrictEqual(r.pattern, [16, 16, 32, 0x0d05, 16, 0x0d05].map((v) => Math.round(v * tick)));
+  assert.ok(Math.abs(r.pattern[0] - 526) <= 1, '16 tick ≈ 526 µs');
+  /* khung hỏng bị từ chối, không đoán */
+  assert.throws(() => IR.encode({ protocol: 'broadlink', data: Buffer.from([0x25, 0, 6, 0, 1, 1, 1, 1, 0x0d, 0x05]).toString('base64') }), /Broadlink/);
+  assert.throws(() => IR.encode({ protocol: 'broadlink', data: frame([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]) }), /kết thúc/);
+  assert.throws(() => IR.encode({ protocol: 'broadlink', data: Buffer.from([0x26, 0, 0xFF, 0x7F, 1, 2, 3, 4, 5, 6]).toString('base64') }), /cụt/);
+  assert.throws(() => IR.encode({ protocol: 'broadlink', data: '***' }), /Base64/);
+  /* mã thật từ SmartIR (Panasonic 1020, lệnh tắt): đầu khung ≈3,8 ms / 1,8 ms đúng kiểu điều hòa Panasonic */
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'web', 'data', 'ac', '1020.js'), 'utf8');
+  const off = JSON.parse(src.slice(src.indexOf(',{') + 1, src.lastIndexOf(');'))).commands.off;
+  const real = IR.encode({ protocol: 'broadlink', data: off });
+  assert.ok(real.pattern[0] > 3500 && real.pattern[0] < 4000 && real.pattern[1] > 1700 && real.pattern[1] < 1900, JSON.stringify(real.pattern.slice(0, 2)));
+  assert.strictEqual(real.pattern.length, 440);
+}
+console.log('ok  - Broadlink: giải mã đúng tick, khoảng dài, từ chối khung hỏng');
+process.exit(0);

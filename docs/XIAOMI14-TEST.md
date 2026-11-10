@@ -1,55 +1,42 @@
 # Danh sách kiểm thử trên Xiaomi 14
 
-Đánh dấu từng mục. Ghi lại mục nào lỗi kèm ảnh chụp màn hình.
+Đánh dấu từng mục; mục lỗi kèm ảnh chụp màn hình.
 
-## A. Cài đặt và phần cứng
-- [ ] Cài APK thành công; app mở, hiển thị logo VIGO, nền tối, không quảng cáo.
-- [ ] Trang chủ hiện chip **"Mắt phát IR sẵn sàng"** (không phải "Chế độ Demo").
-- [ ] IR Setup → **Kiểm tra mắt phát IR**: báo "Máy có mắt phát hồng ngoại" và hiện dải tần; 38 kHz và 40 kHz đều "hỗ trợ".
-- [ ] **Kiểm tra khả năng phát** báo đã nhận lệnh. Mở camera TRƯỚC, hướng mắt phát IR (thường ở cạnh trên máy) vào ống kính, bấm lại: thấy đốm sáng tím nhạt.
-- [ ] Tắt hẳn app rồi mở lại: thiết bị và lịch sử vẫn còn.
-- [ ] Bật chế độ máy bay / tắt Wi-Fi và dữ liệu: mọi chức năng điều khiển vẫn dùng được.
+## A. Cài đặt, phần cứng, mở app
+- [ ] Cài APK; mở app có hiệu ứng logo VIGO rồi vào thẳng tab **Điều khiển**.
+- [ ] Chip góc phải ghi **“IR sẵn sàng”** (không phải “Demo”).
+- [ ] Cài đặt → **Kiểm tra mắt phát IR** báo đã gửi; camera trước của máy khác thấy chấm sáng tím.
+- [ ] Tắt hẳn app rồi mở lại: thiết bị và cài đặt còn nguyên. Bật chế độ máy bay: vẫn dùng được.
 
-## B0. Thư viện dựng sẵn và dò tự động (cần một TV thật)
-- [ ] Thêm thiết bị → chọn hãng TV của bạn → danh sách dòng/remote hiện ra, có bộ chọn sẵn; Lưu → mở remote.
-- [ ] Bấm Nguồn, âm lượng, kênh: TV phản ứng (nếu không, thử bộ khác hoặc dò tự động).
-- [ ] IR Setup → mục 3 → **Bắt đầu dò**: app gửi lệnh Nguồn từng bộ (cứ 5 giây chuyển bộ); khi TV phản ứng, bấm "TV đã phản ứng ✓" → báo "Tìm thấy!" và nạp bộ mã.
-- [ ] "◀ Bộ trước", "Gửi lại", "Bộ tiếp ▶", "Tạm dừng tự chuyển", "Dừng" đều hoạt động.
-- [ ] Sau khi dò: thử vài nút khác, bấm "Lưu cấu hình"; thoát/mở lại app, thiết bị còn nguyên.
-- [ ] Nếu nút sai, chọn bộ có ★ trong danh sách (cùng mã Nguồn) rồi nạp lại.
-- [ ] Ghi lại hãng, remote đã khớp và model TV để đối chiếu.
+## B. Thêm TV (cần TV thật)
+- [ ] Điều khiển → **Thêm thiết bị** → TV → hãng → **Thử phím Nguồn**; TV phản ứng thì **Dùng bộ mã này**, không thì **Sau ▶** (bộ trùng mã đã thử được bỏ qua).
+- [ ] Đặt tên → Lưu → tự về tab Điều khiển.
+- [ ] Hãng không có trong danh sách: “Hãng khác / tự nhập mã” → Cài đặt → thiết bị → Gán mã tùy chỉnh (Pronto/Raw/giao thức/tệp .ir).
 
-## B. Nhập mã thủ công và thử từng nút (cần một TV thật)
-- [ ] Thêm thiết bị TV, đặt tên tùy chỉnh, chọn hãng, nhập model.
-- [ ] Import tệp `.ir` bằng nút chọn tệp (nếu chọn tệp không được, dùng dán nội dung).
-- [ ] Báo cáo import nêu đúng số mã nhập và số mã bị bỏ qua.
-- [ ] Nút "Thử" → toast "Đã phát"; TV phản ứng; bấm ✓ thì nhãn đổi thành "Hoạt động".
-- [ ] Khi TV không phản ứng, bấm ✗ → nhãn "Không phản ứng".
-- [ ] Nút "Lưu cấu hình (đã kiểm tra)" chỉ bật sau khi có ít nhất một ✓.
-- [ ] Thoát và mở lại: mã và nhãn đã kiểm tra còn nguyên.
+## C. Điều khiển TV
+- [ ] **OK bấm được** và TV phản ứng. Lên/xuống/trái/phải điều hướng đúng.
+- [ ] Quay lại / Trang chủ / Thoát; Âm lượng +/−, Tắt tiếng, Nguồn.
+- [ ] Giữ Âm lượng +/− và mũi tên: lặp liên tục, thả tay thì dừng.
+- [ ] Mọi phím trong tầm ngón cái ở nửa dưới màn hình; không bấm nhầm phím bên cạnh.
+- [ ] “⋯” mở phím phụ (Menu, Kênh, số…); phím thiếu mã báo rõ, không báo thành công.
+- [ ] Cài đặt → thiết bị → **Bảng phím**: bấm thử từng phím.
 
-## C. TV Remote
-- [ ] Nguồn, Tắt tiếng, Âm lượng +/−, Kênh +/−.
-- [ ] Bàn điều hướng ▲▼◀▶, OK, Quay lại, Home, Menu.
-- [ ] Số 0–9.
-- [ ] HDMI, AV, TV (nếu mã có).
-- [ ] Nút chưa có mã hiển thị mờ và khi bấm báo "chưa có mã", không báo thành công.
-- [ ] Nút rung nhẹ khi bấm; không bị bấm đôi ngoài ý muốn.
+## D. Điều hòa (cần điều hòa thật)
+- [ ] Thêm Điều hòa → hãng → **Thử BẬT** / **Thử TẮT**; điều hòa “bíp”/phản ứng thì dùng; không thì **Sau ▶**.
+- [ ] Nguồn bật/tắt; nhiệt độ ±; chế độ; quạt; đảo gió (nếu bộ mã có).
+- [ ] Đang tắt thì đổi nhiệt độ không gửi (có báo); bấm Nguồn mới gửi đúng trạng thái.
+- [ ] Hẹn giờ tắt 30 phút (app mở): đến giờ điều hòa tắt.
+- [ ] Ghi lại hãng/bộ mã đã khớp để đối chiếu.
 
-## D. Điều hòa (cần mã của đúng hãng/đời máy)
-- [ ] Bật/Tắt: điều hòa phản ứng; trạng thái trong app đổi chỉ khi gửi không lỗi.
-- [ ] Nhiệt độ +/− trong 16–30 °C; ở biên báo lỗi rõ ràng.
-- [ ] Chế độ Tự động/Làm lạnh/Hút ẩm/Quạt/Sưởi.
-- [ ] Tốc độ quạt Tự động/Thấp/Vừa/Cao.
-- [ ] Đảo gió lên/xuống, trái/phải.
-- [ ] Hẹn giờ 30 phút: đặt, thấy đếm ngược, hủy được. Với app mở, đến giờ điều hòa tắt. Đóng app trước giờ hẹn rồi mở lại sau giờ hẹn: Trang chủ báo "Hẹn giờ quá hạn".
-
-## E. Quản lý thiết bị và lịch sử
-- [ ] Thêm hai thiết bị cùng loại, sửa tên, xóa một thiết bị (có hộp xác nhận).
-- [ ] Lịch sử ghi đúng trạng thái: "Đã gửi lệnh tới mắt phát", "Demo", hoặc "Lỗi" kèm lý do.
-- [ ] Nút Back của Android: đóng hộp thoại, rồi về Trang chủ, rồi thoát app.
+## E. Phản hồi & cài đặt
+- [ ] Rung khi bấm; tắt công tắc thì hết rung; 3 mức Nhẹ/Vừa/Mạnh khác nhau rõ rệt; lỗi rung kép.
+- [ ] **Phím âm lượng của máy chỉnh TV**: bật → bấm phím vật lý ở tab Điều khiển gửi Âm lượng ±; sang Cài đặt thì phím trở lại điều khiển âm lượng điện thoại.
+- [ ] **Giữ màn hình sáng**: màn hình không tắt khi ở tab Điều khiển.
+- [ ] **Giảm chuyển động**: tắt hiệu ứng mở app và chuyển tab.
+- [ ] Sao lưu → xóa dữ liệu → khôi phục.
 
 ## F. Giao diện
-- [ ] Không bị che bởi camera đục lỗ/thanh điều hướng; cuộn mượt; nút đủ lớn.
-- [ ] Xoay màn hình bị khóa dọc (chủ ý).
-- [ ] Chế độ tối hệ thống và cỡ chữ hệ thống lớn: bố cục vẫn dùng được.
+- [ ] Hiệu ứng mở app và chuyển tab mượt; không giật.
+- [ ] Không bị che bởi camera đục lỗ/thanh điều hướng; cỡ chữ hệ thống lớn vẫn dùng được.
+- [ ] Nút Back của Android: đóng hộp thoại → đóng trang → về Điều khiển → thoát app.
+- [ ] Không có mục lịch sử ở bất kỳ đâu.

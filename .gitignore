@@ -4,3 +4,4 @@ node_modules/
 local.properties
 *.keystore
 *.jks
+android/app/src/main/assets/web/

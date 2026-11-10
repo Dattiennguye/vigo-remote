@@ -84,6 +84,22 @@
       return IRBridge.sendRaw(38000, [600, 600, 600, 600, 600, 600, 600, 20000]);
     },
 
+    /* Rung phản hồi. kind: tick | click | heavy | error. Native dùng VibrationEffect; ngoài app dùng navigator.vibrate. */
+    haptic: function (kind) {
+      try {
+        if (native() && typeof window.VigoNative.haptic === 'function') window.VigoNative.haptic(kind);
+        else if (navigator.vibrate) navigator.vibrate(kind === 'error' ? [25, 40, 25] : kind === 'heavy' ? 28 : kind === 'tick' ? 8 : 16);
+      } catch (e) { /* rung chỉ là phụ trợ */ }
+    },
+
+    /* Dùng phím âm lượng vật lý để điều khiển TV (chỉ có tác dụng trong app Android). */
+    setVolumeKeys: function (on) {
+      try { if (native() && typeof window.VigoNative.setVolumeKeys === 'function') call('setVolumeKeys', !!on); } catch (e) { /* bỏ qua */ }
+    },
+    keepScreenOn: function (on) {
+      try { if (native() && typeof window.VigoNative.keepScreenOn === 'function') call('keepScreenOn', !!on); } catch (e) { /* bỏ qua */ }
+    },
+
     vibrate: function (ms) {
       try {
         if (native() && typeof window.VigoNative.vibrate === 'function') window.VigoNative.vibrate(ms);

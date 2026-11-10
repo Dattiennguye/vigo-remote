@@ -5,8 +5,10 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -14,7 +16,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements IrBridge.Host {
     private static final String START_URL = "file:///android_asset/web/index.html";
     private static final String ASSET_PREFIX = "file:///android_asset/";
     private static final int REQ_FILE = 1001;
@@ -22,6 +24,7 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private ValueCallback<Uri[]> filePathCallback;
+    private volatile boolean volumeKeys = false;
 
     @Override
     @SuppressWarnings("SetJavaScriptEnabled")
@@ -51,7 +54,7 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         // Giao diện nhận biết Native Bridge qua window.VigoNative.
-        web.addJavascriptInterface(new IrBridge(this), "VigoNative");
+        web.addJavascriptInterface(new IrBridge(this, this), "VigoNative");
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -88,6 +91,38 @@ public class MainActivity extends Activity {
         } else {
             web.restoreState(savedInstanceState);
         }
+    }
+
+    @Override
+    public void setVolumeKeys(boolean enabled) {
+        volumeKeys = enabled;
+    }
+
+    @Override
+    public void setKeepScreenOn(boolean enabled) {
+        runOnUiThread(() -> {
+            if (enabled) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        });
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (volumeKeys && web != null
+                && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            String key = keyCode == KeyEvent.KEYCODE_VOLUME_UP ? "vol_up" : "vol_down";
+            web.evaluateJavascript("window.__vigoKey && window.__vigoKey('" + key + "')", null);
+            return true; // không đổi âm lượng của điện thoại
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (volumeKeys && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
     }
 
     @Override
