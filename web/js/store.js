@@ -2,10 +2,10 @@
 (function () {
   'use strict';
   var KEY = 'vigo.remote.v2', OLD = 'vigo.remote.v1';
-  var DEFAULTS = { haptics: true, hapticLevel: 'medium', reduceMotion: false, repeat: true, keepAwake: false, volumeKeys: false };
+  var DEFAULTS = { haptics: true, hapticLevel: 'medium', hapticMode: 'motor', reduceMotion: false, repeat: true, keepAwake: false, volumeKeys: false };
   var state, storageError = null, listeners = [];
 
-  function fresh() { return { v: 2, devices: [], activeId: null, settings: Object.assign({}, DEFAULTS) }; }
+  function fresh() { return { v: 2, devices: [], activeId: null, account: null, pro: { active: false, checkedAt: 0 }, settings: Object.assign({}, DEFAULTS) }; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function emit() { listeners.forEach(function (f) { try { f(); } catch (e) { /* bỏ qua */ } }); }
 
@@ -23,7 +23,10 @@
         if (typeof p.settings[k] === typeof DEFAULTS[k]) s.settings[k] = p.settings[k];
       });
       if (['light', 'medium', 'strong'].indexOf(s.settings.hapticLevel) < 0) s.settings.hapticLevel = 'medium';
+      if (['motor', 'system'].indexOf(s.settings.hapticMode) < 0) s.settings.hapticMode = 'motor';
     }
+    if (p.account && typeof p.account.email === 'string') s.account = { email: p.account.email.slice(0, 120), name: String(p.account.name || '').slice(0, 80) };
+    if (p.pro && typeof p.pro === 'object') s.pro = { active: !!p.pro.active, checkedAt: Number(p.pro.checkedAt) || 0 };
     s.activeId = s.devices.some(function (d) { return d.id === p.activeId; }) ? p.activeId : (s.devices[0] ? s.devices[0].id : null);
     return s;
   }
@@ -75,12 +78,19 @@
     setting: function (k) { return state.settings[k]; },
     set: function (k, v) { if (k in DEFAULTS) { state.settings[k] = v; save(); emit(); } },
 
-    exportJson: function () { return JSON.stringify({ app: 'vigo-remote', version: 2, data: state }, null, 1); },
+    account: function () { return state.account; },
+    setAccount: function (a) { state.account = a ? { email: String(a.email).slice(0, 120), name: String(a.name || '').slice(0, 80) } : null; save(); emit(); },
+    pro: function () { return Object.assign({}, state.pro); },
+    setPro: function (active) { state.pro = { active: !!active, checkedAt: Date.now() }; save(); emit(); },
+
+    exportJson: function () { var copy = Object.assign({}, state); delete copy.account; delete copy.pro; /* tài khoản/gói không nằm trong sao lưu */
+      return JSON.stringify({ app: 'vigo-remote', version: 2, data: copy }, null, 1); },
     importJson: function (text) {
       var p;
       try { p = JSON.parse(text); } catch (e) { throw new Error('Nội dung không phải JSON hợp lệ'); }
       if (!p || p.app !== 'vigo-remote' || !p.data) throw new Error('Đây không phải bản sao lưu của VIGO Remote');
       var s = sanitize(p.data);
+      s.account = state.account; s.pro = state.pro;
       state = s; save(); emit();
       return s.devices.length;
     },

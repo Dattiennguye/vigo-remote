@@ -68,10 +68,11 @@
   /* ---- Rung ---- */
   function haptic(kind) { /* kind: press | nav | error */
     if (!Store.setting('haptics')) return;
-    if (kind === 'error') return Bridge.haptic('error');
+    var mode = Store.setting('hapticMode');
+    if (kind === 'error') return Bridge.haptic('error', mode);
     var lvl = Store.setting('hapticLevel');
-    if (kind === 'nav') return Bridge.haptic('tick');
-    Bridge.haptic(lvl === 'light' ? 'tick' : lvl === 'strong' ? 'heavy' : 'click');
+    if (kind === 'nav') return Bridge.haptic('tick', mode);
+    Bridge.haptic(lvl === 'light' ? 'tick' : lvl === 'strong' ? 'heavy' : 'click', mode);
   }
 
   /* ---- Nút bấm: kích hoạt ngay khi chạm (pointerdown), giữ để lặp, hỗ trợ bàn phím ---- */
@@ -167,6 +168,143 @@
   }
   function hasPage() { return pageStack.length > 0; }
 
+
+  /* ---- Thanh kéo mượt: chỉ dùng transform/clip-path (chạy trên GPU), bám ngón tay liên tục, thả thì hít vào mức gần nhất ---- */
+  function slider(o) {
+    var values = o.values.slice(), idx = 0, w = 0, tw = 56, dragging = false, pid = null, raf = 0, lastP = 0;
+    var fill = h('div', { class: 's-fill' }), ticks = h('div', { class: 's-ticks', 'aria-hidden': 'true' });
+    var thumb = h('div', { class: 's-thumb' }, h('span', { class: 's-val' }));
+    var track = h('div', { class: 's-track' }, fill, ticks, thumb);
+    var el = h('div', { class: 'slider ' + (o.cls || ''), role: 'slider', tabindex: '0', 'aria-label': o.label }, track);
+    var valEl = thumb.firstChild;
+
+    function fmt(v) { return o.format ? o.format(v) : String(v); }
+    function nearest(v) { var b = 0; for (var i = 1; i < values.length; i++) if (Math.abs(values[i] - v) < Math.abs(values[b] - v)) b = i; return b; }
+    function measure() { w = track.clientWidth; tw = thumb.offsetWidth || tw; }
+    function place(p, noAnim) { /* p: 0..1 liên tục */
+      lastP = p;
+      if (!w) measure();
+      var x = Math.max(0, Math.min(1, p)) * Math.max(0, w - tw);
+      thumb.style.transform = 'translate3d(' + x + 'px,0,0)';
+      fill.style.clipPath = 'inset(0 ' + Math.max(0, w - x - tw * 0.6) + 'px 0 0 round 26px)';
+    }
+    function pOf(i) { return values.length > 1 ? i / (values.length - 1) : 0; }
+    function aria() { el.setAttribute('aria-valuemin', values[0]); el.setAttribute('aria-valuemax', values[values.length - 1]); el.setAttribute('aria-valuenow', values[idx]); el.setAttribute('aria-valuetext', fmt(values[idx])); }
+    function render(anim) { el.classList.toggle('snap', !!anim && !dragging); valEl.textContent = fmt(values[idx]); aria(); place(pOf(idx)); }
+    function build() {
+      ticks.replaceChildren();
+      var n = Math.min(values.length, 40);
+      if (values.length <= 40) for (var i = 0; i < n; i++) ticks.appendChild(h('i'));
+    }
+    function fromX(clientX) {
+      var r = track.getBoundingClientRect(); measure();
+      var span = Math.max(1, w - tw);
+      return Math.max(0, Math.min(1, (clientX - r.left - tw / 2) / span));
+    }
+    function move(clientX) {
+      var p = fromX(clientX), ni = Math.round(p * (values.length - 1));
+      place(p);
+      if (ni !== idx) { idx = ni; valEl.textContent = fmt(values[idx]); aria(); haptic('nav'); if (o.onInput) o.onInput(values[idx]); }
+    }
+    track.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button > 0) return;
+      dragging = true; pid = e.pointerId; el.classList.add('drag'); el.classList.remove('snap');
+      try { track.setPointerCapture(pid); } catch (x) { /* bỏ qua */ }
+      move(e.clientX);
+    });
+    track.addEventListener('pointermove', function (e) {
+      if (!dragging || e.pointerId !== pid) return;
+      if (raf) return; var cx = e.clientX;
+      raf = requestAnimationFrame(function () { raf = 0; if (dragging) move(cx); });
+    });
+    function end(e) {
+      if (!dragging || (e && e.pointerId !== pid)) return;
+      dragging = false; el.classList.remove('drag'); if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      el.classList.add('snap'); render(true);
+      if (o.onCommit) o.onCommit(values[idx]);
+    }
+    track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end);
+    el.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+      if (e.key === 'Home') d = -values.length; if (e.key === 'End') d = values.length;
+      if (!d) return; e.preventDefault();
+      var ni = Math.max(0, Math.min(values.length - 1, idx + d));
+      if (ni === idx) return; idx = ni; haptic('nav'); render(true);
+      if (o.onInput) o.onInput(values[idx]); if (o.onCommit) o.onCommit(values[idx]);
+    });
+    if (window.ResizeObserver) new ResizeObserver(function () { measure(); place(dragging ? lastP : pOf(idx)); }).observe(track);
+    build(); idx = nearest(o.value); render(false);
+    requestAnimationFrame(function () { measure(); render(false); });
+    return {
+      el: el,
+      set: function (v, newValues) {
+        if (newValues && (newValues.length !== values.length || newValues[0] !== values[0] || newValues[newValues.length - 1] !== values[values.length - 1])) { values = newValues.slice(); build(); }
+        if (dragging) return; idx = nearest(v); render(true);
+      },
+      setColors: function (c1, c2) { el.style.setProperty('--c1', c1); el.style.setProperty('--c2', c2); },
+      setDisabled: function (d) { el.classList.toggle('dim', !!d); }
+    };
+  }
+
+  /* ---- Thanh mức độ dạng cột to nhỏ (quạt): kéo ngang qua các cột để chọn ---- */
+  function levels(o) {
+    var items = o.items.slice(), idx = 0, dragging = false, pid = null;
+    var bars = h('div', { class: 'lv-bars' });
+    var name = h('div', { class: 'lv-name' });
+    var el = h('div', { class: 'levels', role: 'slider', tabindex: '0', 'aria-label': o.label }, bars, name);
+    function buildBars() {
+      bars.replaceChildren();
+      items.forEach(function (it, i) {
+        var b = h('i', { class: 'lv-bar' }); b.style.height = (26 + (i + 1) / items.length * 74) + '%'; bars.appendChild(b);
+      });
+    }
+    function paint() {
+      var n = bars.children;
+      for (var i = 0; i < n.length; i++) { n[i].classList.toggle('on', idx >= 0 && i <= idx); n[i].classList.toggle('cur', i === idx); }
+      name.textContent = idx >= 0 ? items[idx].label : '';
+      el.classList.toggle('none', idx < 0);
+      if (idx >= 0) { el.setAttribute('aria-valuenow', idx + 1); el.setAttribute('aria-valuetext', items[idx].label); }
+      el.setAttribute('aria-valuemin', 1); el.setAttribute('aria-valuemax', items.length);
+    }
+    function pick(clientX) {
+      var r = bars.getBoundingClientRect(); var p = Math.max(0, Math.min(0.9999, (clientX - r.left) / Math.max(1, r.width)));
+      var ni = Math.floor(p * items.length);
+      if (ni !== idx) { idx = ni; paint(); haptic('nav'); if (o.onInput) o.onInput(items[idx].key); }
+    }
+    el.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button > 0) return;
+      dragging = true; pid = e.pointerId; el.classList.add('drag'); try { el.setPointerCapture(pid); } catch (x) { /* bỏ qua */ } pick(e.clientX);
+    });
+    el.addEventListener('pointermove', function (e) { if (dragging && e.pointerId === pid) pick(e.clientX); });
+    function end(e) { if (!dragging || e.pointerId !== pid) return; dragging = false; el.classList.remove('drag'); if (o.onCommit) o.onCommit(items[idx].key); }
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    el.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+      if (!d) return; e.preventDefault(); var ni = Math.max(0, Math.min(items.length - 1, (idx < 0 ? 0 : idx) + d));
+      if (ni === idx) return; idx = ni; paint(); haptic('nav'); if (o.onInput) o.onInput(items[idx].key); if (o.onCommit) o.onCommit(items[idx].key);
+    });
+    buildBars(); idx = items.map(function (x) { return x.key; }).indexOf(o.value); paint();
+    return { el: el, set: function (key, newItems) {
+      if (newItems && newItems.map(function (x) { return x.key; }).join('|') !== items.map(function (x) { return x.key; }).join('|')) { items = newItems.slice(); buildBars(); }
+      if (dragging) return; idx = items.map(function (x) { return x.key; }).indexOf(key); paint();
+    } };
+  }
+
+  /* ---- Gợn sóng mờ dần khi chạm mọi nút ---- */
+  var RIP = '.key,.btn,.chip,.xkey,.row.tap,.pill,.irchip,.icon-btn,.bigcard,.devrow,.seg button,#tabbar button,.plan';
+  document.addEventListener('pointerdown', function (e) {
+    if (document.documentElement.classList.contains('calm')) return;
+    var t = e.target && e.target.closest ? e.target.closest(RIP) : null;
+    if (!t || t.disabled || t.getAttribute('aria-disabled') === 'true') return;
+    var r = t.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2;
+    t.classList.add('rip-host');
+    var s = document.createElement('span'); s.className = 'rip';
+    s.style.cssText = 'width:' + d + 'px;height:' + d + 'px;left:' + (e.clientX - r.left - d / 2) + 'px;top:' + (e.clientY - r.top - d / 2) + 'px';
+    t.appendChild(s);
+    var rm = function () { if (s.parentNode) s.parentNode.removeChild(s); };
+    s.addEventListener('animationend', rm); setTimeout(rm, 900);
+  }, true);
+
   function sectionTitle(t) { return h('h3', { class: 'sec', text: t }); }
   function toggleRow(title, sub, checked, onChange) {
     var input = h('input', { type: 'checkbox', role: 'switch' });
@@ -180,6 +318,6 @@
   window.VigoUI = {
     h: h, add: add, icon: icon, haptic: haptic, pressable: pressable, toast: toast,
     openSheet: openSheet, closeSheet: closeSheet, hasSheet: hasSheet, confirmBox: confirmBox,
-    openPage: openPage, closePage: closePage, hasPage: hasPage, sectionTitle: sectionTitle, toggleRow: toggleRow
+    openPage: openPage, closePage: closePage, hasPage: hasPage, sectionTitle: sectionTitle, toggleRow: toggleRow, slider: slider, levels: levels
   };
 })();

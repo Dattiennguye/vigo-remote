@@ -11,14 +11,79 @@
   function normKey(name) { var s = String(name).toLowerCase().replace(/\+/g, '_plus').replace(/-/g, '_minus').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); return ALIAS[s] || s || 'khac'; }
   function pct(n, t) { return n + '/' + t; }
 
-  function save() { /* tránh vòng lặp: chỉ render lại phần này */ render(); }
-
+  
   function row(icon, title, sub, onClick, right) {
     return h('button', { type: 'button', class: 'row tap', onclick: function () { UI.haptic('nav'); onClick(); } },
       icon ? h('span', { class: 'ri' }, UI.icon(icon)) : null,
       h('span', { class: 'row-main' }, h('span', { class: 'row-title', text: title }), sub ? h('span', { class: 'row-sub', text: sub }) : null),
       right || UI.icon('chevr', 'dim'));
   }
+
+
+  /* ================= Tài khoản & gói Pro ================= */
+  var Online = window.VigoOnline;
+  function accountCard() {
+    var c = h('div', { class: 'card' }), acc = Store.account(), pro = Store.pro().active, cfg = Online.config();
+    if (acc) {
+      c.appendChild(h('div', { class: 'row' }, h('span', { class: 'avatar', text: (acc.name || acc.email).charAt(0).toUpperCase() }),
+        h('span', { class: 'row-main' }, h('span', { class: 'row-title', text: acc.name || acc.email }), h('span', { class: 'row-sub', text: acc.email })),
+        h('button', { class: 'btn ghost', text: 'Đăng xuất', onclick: function () { UI.haptic('nav'); Online.signOut(); } })));
+    } else {
+      c.appendChild(row('shield', 'Đăng nhập bằng Google', !cfg.available ? 'Chỉ có trong ứng dụng Android' : cfg.signIn ? 'Dùng tài khoản Gmail của bạn' : 'Chưa cấu hình ID đăng nhập (docs/ONLINE-SERVICES.md)', function () { Online.signIn(); }));
+    }
+    c.appendChild(row('auto', pro ? 'VIGO Pro — đang hoạt động' : 'VIGO Free', pro ? 'Không quảng cáo. Cảm ơn bạn đã ủng hộ!' : 'Có quảng cáo. Nâng cấp Pro để tắt quảng cáo.', proPage,
+      h('span', { class: 'badge', text: pro ? 'Pro' : 'Nâng cấp' })));
+    return c;
+  }
+
+  function proPage() {
+    UI.openPage('VIGO Pro', function (b) {
+      var cfg = Online.config(), pro = Store.pro().active;
+      b.appendChild(h('div', { class: 'card pad' },
+        h('p', null, h('b', { text: pro ? 'Bạn đang dùng VIGO Pro' : 'Nâng cấp VIGO Pro' })),
+        h('p', { class: 'muted', text: 'Tắt quảng cáo và ủng hộ việc phát triển. Mọi chức năng điều khiển luôn miễn phí.' })));
+      var list = h('div', null);
+      b.appendChild(list);
+      function showPlans(plans) {
+        list.replaceChildren();
+        plans.forEach(function (p) {
+          var per = Online.periodLabel(p.period);
+          list.appendChild(h('button', { type: 'button', class: 'plan', onclick: function () { UI.haptic('nav'); Online.buy(p.id); } },
+            h('span', null, h('b', { text: per === 'mỗi năm' ? '1 năm' : per === 'mỗi 6 tháng' ? '6 tháng' : (p.title || p.id) }), h('div', { class: 'row-sub', text: 'Tự gia hạn ' + per + ', hủy bất cứ lúc nào' })),
+            h('span', { class: 'price', text: p.price })));
+        });
+        if (!plans.length) list.appendChild(h('p', { class: 'muted pad-s', text: 'Chưa có gói nào.' }));
+      }
+      if (!pro) {
+        if (!cfg.available) list.appendChild(h('p', { class: 'muted pad-s', text: 'Thanh toán chỉ có trong ứng dụng Android.' }));
+        else { list.appendChild(h('div', { class: 'loading' }, h('i'), h('span', { text: 'Đang tải gói…' }))); proPlansCb = function (ev) { if (ev.ok) showPlans(ev.plans || []); else list.replaceChildren(h('p', { class: 'muted pad-s', text: ev.error || 'Không tải được gói' })); }; Online.loadPlans(); }
+      }
+      var act = h('div', { class: 'card' });
+      act.appendChild(row('save', 'Khôi phục giao dịch', 'Kiểm tra gói đã mua trên tài khoản Google Play', function () { Online.checkEntitlement(); UI.toast('warn', 'Đang kiểm tra…'); restoring = true; }));
+      if (pro) act.appendChild(row('gear', 'Quản lý gói', 'Mở trang đăng ký của Google Play', function () { Online.manage(); }));
+      b.appendChild(act);
+      b.appendChild(h('p', { class: 'row-sub pad-s', text: 'Gói thanh toán và hủy do Google Play xử lý. Quyền Pro được kiểm tra trên máy qua Google Play.' }));
+    }, { onClose: function () { proPlansCb = null; } });
+  }
+  var proPlansCb = null, restoring = false;
+
+  Online.on(function (ev) {
+    if (ev.type === 'auth') {
+      if (ev.ok && ev.signedOut) { Store.setAccount(null); UI.toast('ok', 'Đã đăng xuất'); }
+      else if (ev.ok) { Store.setAccount({ email: ev.email, name: ev.name }); UI.haptic('press'); UI.toast('ok', 'Đã đăng nhập ' + ev.email); }
+      else { UI.haptic('error'); UI.toast('err', ev.error || 'Đăng nhập thất bại'); }
+    } else if (ev.type === 'plans') { if (proPlansCb) proPlansCb(ev); }
+    else if (ev.type === 'entitlement') {
+      if (ev.ok) {
+        var was = Store.pro().active; Store.setPro(ev.active); Online.setAds(!ev.active);
+        if (restoring) { restoring = false; UI.toast(ev.active ? 'ok' : 'warn', ev.active ? 'Gói Pro đang hoạt động' : 'Không tìm thấy gói Pro nào'); }
+        else if (ev.active && !was) UI.toast('ok', 'Đã kích hoạt VIGO Pro');
+      } else if (restoring) { restoring = false; UI.toast('err', ev.error || 'Không kiểm tra được gói'); }
+    } else if (ev.type === 'purchase') {
+      if (!ev.ok) { UI.haptic('error'); UI.toast(ev.state === 'cancelled' ? 'warn' : 'err', ev.error || 'Thanh toán thất bại'); }
+      else if (ev.pending) UI.toast('warn', 'Thanh toán đang chờ xử lý');
+    }
+  });
 
   /* ================= Cài đặt ================= */
   function render() {
@@ -39,24 +104,38 @@
     card.appendChild(h('button', { class: 'btn primary block', onclick: function () { UI.haptic('nav'); addDevice(); } }, UI.icon('plus'), h('span', { text: 'Thêm thiết bị' })));
     root.appendChild(card);
 
+    root.appendChild(UI.sectionTitle('Tài khoản & gói'));
+    root.appendChild(accountCard());
+
     root.appendChild(UI.sectionTitle('Phản hồi & chuyển động'));
     var fb = h('div', { class: 'card' });
-    fb.appendChild(UI.toggleRow('Rung khi bấm nút', 'Rung nhẹ mỗi lần chạm, rung kép khi có lỗi', Store.setting('haptics'), function (v) { Store.set('haptics', v); if (v) UI.haptic('press'); save(); }));
-    if (Store.setting('haptics')) {
-      var seg = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Cường độ rung' });
-      [['light', 'Nhẹ'], ['medium', 'Vừa'], ['strong', 'Mạnh']].forEach(function (o) {
-        seg.appendChild(h('button', { type: 'button', role: 'radio', 'aria-checked': String(Store.setting('hapticLevel') === o[0]), class: Store.setting('hapticLevel') === o[0] ? 'on' : '', text: o[1], onclick: function () { Store.set('hapticLevel', o[0]); UI.haptic('press'); save(); } }));
+    var coll = h('div', { class: 'collapse' + (Store.setting('haptics') ? ' open' : '') });
+    fb.appendChild(UI.toggleRow('Rung khi bấm nút', 'Rung nhẹ mỗi lần chạm, rung kép khi có lỗi', Store.setting('haptics'), function (v) { Store.set('haptics', v); coll.classList.toggle('open', v); if (v) UI.haptic('press'); }));
+    function segRow(title, sub, opts, key) {
+      var seg = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': title });
+      opts.forEach(function (o) {
+        var b = h('button', { type: 'button', role: 'radio', 'aria-checked': String(Store.setting(key) === o[0]), class: Store.setting(key) === o[0] ? 'on' : '', text: o[1], onclick: function () {
+          Store.set(key, o[0]);
+          Array.prototype.forEach.call(seg.children, function (c) { var on = c === b; c.classList.toggle('on', on); c.setAttribute('aria-checked', String(on)); });
+          UI.haptic('press');
+        } });
+        seg.appendChild(b);
       });
-      fb.appendChild(h('div', { class: 'row' }, h('span', { class: 'row-main' }, h('span', { class: 'row-title', text: 'Cường độ rung' })), seg));
+      return h('div', { class: 'row' }, h('span', { class: 'row-main' }, h('span', { class: 'row-title', text: title }), sub ? h('span', { class: 'row-sub', text: sub }) : null), seg);
     }
-    fb.appendChild(UI.toggleRow('Giữ để lặp', 'Giữ nút âm lượng, mũi tên hoặc nhiệt độ để gửi liên tục', Store.setting('repeat'), function (v) { Store.set('repeat', v); save(); }));
-    fb.appendChild(UI.toggleRow('Giảm chuyển động', 'Tắt hiệu ứng mở app và chuyển tab', Store.setting('reduceMotion'), function (v) { Store.set('reduceMotion', v); window.VigoApp.applyPrefs(); save(); }));
+    coll.appendChild(h('div', null,
+      segRow('Cường độ rung', null, [['light', 'Nhẹ'], ['medium', 'Vừa'], ['strong', 'Mạnh']], 'hapticLevel'),
+      segRow('Kiểu rung', 'Nếu không thấy rung, thử đổi kiểu', [['motor', 'Mô-tơ'], ['system', 'Hệ thống']], 'hapticMode'),
+      row('wave', 'Thử rung', 'Rung thử và báo thông tin mô-tơ rung', function () { var r = Bridge.hapticTest(); UI.toast(r.status === 'sent' ? 'ok' : r.status === 'demo' ? 'warn' : 'err', r.message); })));
+    fb.appendChild(coll);
+    fb.appendChild(UI.toggleRow('Giữ để lặp', 'Giữ nút âm lượng, mũi tên hoặc nhiệt độ để gửi liên tục', Store.setting('repeat'), function (v) { Store.set('repeat', v); }));
+    fb.appendChild(UI.toggleRow('Giảm chuyển động', 'Tắt hiệu ứng mở app, chuyển tab và gợn sóng', Store.setting('reduceMotion'), function (v) { Store.set('reduceMotion', v); window.VigoApp.applyPrefs(); }));
     root.appendChild(fb);
 
     root.appendChild(UI.sectionTitle('Khi điều khiển'));
     var ct = h('div', { class: 'card' });
-    ct.appendChild(UI.toggleRow('Giữ màn hình sáng', 'Màn hình không tự tắt khi đang ở tab Điều khiển', Store.setting('keepAwake'), function (v) { Store.set('keepAwake', v); window.VigoControl.sync(); save(); }));
-    ct.appendChild(UI.toggleRow('Phím âm lượng của máy chỉnh TV', 'Bấm phím vật lý để gửi Âm lượng +/− tới TV (chỉ khi đang ở tab Điều khiển)', Store.setting('volumeKeys'), function (v) { Store.set('volumeKeys', v); window.VigoControl.sync(); save(); }));
+    ct.appendChild(UI.toggleRow('Giữ màn hình sáng', 'Màn hình không tự tắt khi đang ở tab Điều khiển', Store.setting('keepAwake'), function (v) { Store.set('keepAwake', v); window.VigoControl.sync(); }));
+    ct.appendChild(UI.toggleRow('Phím âm lượng của máy chỉnh TV', 'Bấm phím vật lý để gửi Âm lượng +/− tới TV (chỉ khi đang ở tab Điều khiển)', Store.setting('volumeKeys'), function (v) { Store.set('volumeKeys', v); window.VigoControl.sync(); }));
     root.appendChild(ct);
 
     root.appendChild(UI.sectionTitle('Mắt phát hồng ngoại'));
@@ -93,9 +172,10 @@
     UI.openPage(which === 'privacy' ? 'Quyền riêng tư' : 'Nguồn mã IR', function (b) {
       if (which === 'privacy') {
         b.appendChild(h('div', { class: 'card pad' },
-          h('p', { text: 'VIGO chạy hoàn toàn ngoại tuyến. Ứng dụng không khai báo quyền Internet, không có quảng cáo, không thu thập dữ liệu, không đăng nhập.' }),
-          h('p', { text: 'Thiết bị và cài đặt chỉ lưu trên máy này. Ứng dụng không ghi lịch sử thao tác.' }),
-          h('p', { class: 'muted', text: 'Quyền sử dụng: phát hồng ngoại (TRANSMIT_IR) và rung (VIBRATE).' })));
+          h('p', { text: 'Điều khiển TV và điều hòa hoạt động ngoại tuyến. Thiết bị, mã IR và cài đặt chỉ lưu trên máy này; ứng dụng không ghi lịch sử thao tác.' }),
+          h('p', { text: 'Internet chỉ được dùng cho 3 việc, do lớp native xử lý (giao diện không tải trang web nào): đăng nhập Google (tên và email), thanh toán gói Pro qua Google Play, và quảng cáo AdMob cho bản miễn phí.' }),
+          h('p', { text: 'Quảng cáo AdMob có thể dùng mã định danh quảng cáo của thiết bị. Gói Pro tắt quảng cáo.' }),
+          h('p', { class: 'muted', text: 'Quyền sử dụng: phát hồng ngoại, rung, Internet, trạng thái mạng, mã định danh quảng cáo.' })));
       } else {
         var card = h('div', { class: 'card pad' });
         Lib.sources().forEach(function (s) { card.appendChild(h('p', null, h('b', { text: s.name + ' — ' + s.what }), h('br'), h('span', { class: 'muted', text: 'Giấy phép ' + s.license + ' · ' + s.url }))); });
@@ -307,7 +387,7 @@
         act.appendChild(row('remote', 'Dùng thiết bị này', 'Mở ở tab Điều khiển', function () { Store.setActive(id); while (UI.hasPage()) UI.closePage(); window.VigoApp.showTab('control'); }));
         act.appendChild(row('edit', 'Đổi tên', null, function () { askName(dev.name, function (n) { Store.update(id, { name: n }); page.querySelector('h2').textContent = n; paint(); }); }));
         if (dev.type === 'tv') act.appendChild(row('plus', 'Gán mã tùy chỉnh', 'Thêm hoặc thay mã cho từng phím', function () { customCodePage(id, paint); }));
-        act.appendChild(row('search', dev.type === 'tv' ? 'Đổi bộ mã khác' : 'Đổi bộ mã khác', 'Chọn lại hãng và thử bộ mã khác', function () { UI.confirmBox('Thêm bộ mã khác?', 'Thiết bị mới sẽ được thêm cùng lúc; thiết bị này không bị xóa.', 'Tiếp tục', function () { addDevice(); }); }));
+        act.appendChild(row('search', 'Đổi bộ mã khác', 'Chọn lại hãng và thử bộ mã khác', function () { UI.confirmBox('Thêm bộ mã khác?', 'Thiết bị mới sẽ được thêm cùng lúc; thiết bị này không bị xóa.', 'Tiếp tục', function () { addDevice(); }); }));
         act.appendChild(row('trash', 'Xóa thiết bị', null, function () { UI.confirmBox('Xóa “' + dev.name + '”?', 'Không thể hoàn tác.', 'Xóa', function () { Store.remove(id); UI.closePage(); UI.toast('ok', 'Đã xóa'); }, true); }));
         b.appendChild(act);
         if (dev.type === 'tv') {
@@ -372,8 +452,14 @@
     });
   }
 
+  function sig() { var a = Store.account(); return JSON.stringify([Store.devices().map(function (d) { return [d.id, d.name, d.brand, d.model]; }), Store.active() && Store.active().id, a && a.email, Store.pro().active]); }
+
   window.VigoSettings = {
-    mount: function (el) { root = el; Store.onChange(function () { if (root && !root.hidden) render(); }); render(); },
+    mount: function (el) {
+      root = el; var last = sig();
+      Store.onChange(function () { var n = sig(); if (n !== last) { last = n; if (root) render(); } });
+      render();
+    },
     render: render, addDevice: addDevice, devicePage: devicePage, _normKey: normKey
   };
 })();

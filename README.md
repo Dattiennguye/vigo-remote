@@ -7,6 +7,9 @@
 - Điều khiển TV tối giản, đặt thấp cho ngón cái: lên/xuống/trái/phải + OK, Quay lại / Trang chủ / Thoát, Âm lượng ± và Tắt tiếng, Nguồn. Phím phụ (Menu, Kênh, số…) nằm sau nút “⋯”.
 - Điều hòa: nhiệt độ ±, chế độ, quạt, đảo gió, nguồn, hẹn giờ tắt; mã thật từ 373 bộ mã / 137 hãng.
 - Rung khi bấm (bật/tắt + 3 mức), giữ để lặp, giảm chuyển động, giữ màn hình sáng, dùng phím âm lượng của máy chỉnh TV.
+- Điều hòa: thanh kéo nhiệt độ mượt (thả tay mới gửi 1 lệnh) và thanh mức quạt dạng cột to nhỏ.
+- Hiệu ứng: mở app ≈2,7 s, gợn sóng/mờ dần mọi nút, công tắc chuyển mờ; chỉ dùng transform/opacity (GPU), yêu cầu màn hình tần số quét cao nhất.
+- Trực tuyến (tùy chọn, native): đăng nhập Google, gói Pro 6 tháng/1 năm, quảng cáo AdMob — xem `docs/ONLINE-SERVICES.md`.
 - Không ghi lịch sử thao tác.
 
 ## Cấu trúc

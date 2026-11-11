@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cấu hình dịch vụ trực tuyến. Điền ID thật của bạn trước khi phát hành lên Google Play. -->
+<resources>
+    <!-- Đăng nhập Google: "Web client ID" (OAuth, loại Web application) tạo trong Google Cloud Console.
+         Để trống = nút Đăng nhập báo "chưa cấu hình". -->
+    <string name="google_web_client_id" translatable="false"></string>
+
+    <!-- AdMob. Hai giá trị dưới là ID THỬ NGHIỆM của Google (hiện quảng cáo "Test Ad").
+         Thay bằng App ID / Banner unit ID thật của bạn khi phát hành. -->
+    <string name="admob_app_id" translatable="false">ca-app-pub-3940256099142470~3347511713</string>
+    <string name="admob_banner_unit" translatable="false">ca-app-pub-3940256099142470/6300978111</string>
+    <bool name="vigo_ads_enabled">true</bool>
+
+    <!-- Google Play Billing: một sản phẩm đăng ký (subscription) với 2 gói cơ sở (base plan). -->
+    <string name="pro_product_id" translatable="false">vigo_pro</string>
+    <string name="pro_plan_6m" translatable="false">pro-6m</string>
+    <string name="pro_plan_1y" translatable="false">pro-1y</string>
+</resources>

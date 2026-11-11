@@ -5,8 +5,12 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.Display;
+import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.ValueCallback;
@@ -23,6 +27,7 @@ public class MainActivity extends Activity implements IrBridge.Host {
     private static final int BG = Color.parseColor("#0B0D12");
 
     private WebView web;
+    private PlatformBridge platform;
     private ValueCallback<Uri[]> filePathCallback;
     private volatile boolean volumeKeys = false;
 
@@ -35,9 +40,20 @@ public class MainActivity extends Activity implements IrBridge.Host {
         window.setStatusBarColor(BG);
         window.setNavigationBarColor(BG);
 
+        preferHighRefreshRate(window);
+
+        // Bố cục: [khung quảng cáo (ẩn mặc định)] + [WebView]
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(BG);
+        FrameLayout adBox = new FrameLayout(this);
+        adBox.setBackgroundColor(BG);
+        adBox.setVisibility(android.view.View.GONE);
+        root.addView(adBox, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         web = new WebView(this);
         web.setBackgroundColor(BG);
-        setContentView(web, new ViewGroup.LayoutParams(
+        root.addView(web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        setContentView(root, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         WebSettings s = web.getSettings();
@@ -52,9 +68,12 @@ public class MainActivity extends Activity implements IrBridge.Host {
         s.setBuiltInZoomControls(false);
         s.setTextZoom(100);
         s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        s.setBlockNetworkLoads(true);          // WebView không bao giờ tải nội dung từ Internet
 
         // Giao diện nhận biết Native Bridge qua window.VigoNative.
         web.addJavascriptInterface(new IrBridge(this, this), "VigoNative");
+        platform = new PlatformBridge(this, web, adBox);
+        web.addJavascriptInterface(platform, "VigoPlatform");
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -91,6 +110,38 @@ public class MainActivity extends Activity implements IrBridge.Host {
         } else {
             web.restoreState(savedInstanceState);
         }
+    }
+
+    /** Chọn chế độ màn hình có tần số quét cao nhất (cùng độ phân giải), ví dụ 120 Hz. */
+    @SuppressWarnings("deprecation")
+    private void preferHighRefreshRate(Window window) {
+        try {
+            Display d = getWindowManager().getDefaultDisplay();
+            Display.Mode cur = d.getMode(), best = cur;
+            for (Display.Mode m : d.getSupportedModes()) {
+                if (m.getPhysicalWidth() == cur.getPhysicalWidth() && m.getPhysicalHeight() == cur.getPhysicalHeight()
+                        && m.getRefreshRate() > best.getRefreshRate()) best = m;
+            }
+            WindowManager.LayoutParams lp = window.getAttributes();
+            lp.preferredDisplayModeId = best.getModeId();
+            lp.preferredRefreshRate = best.getRefreshRate();
+            window.setAttributes(lp);
+        } catch (Exception ignored) {
+            // không bắt buộc
+        }
+    }
+
+    @Override
+    public void systemHaptic(String kind, Runnable fallback) {
+        runOnUiThread(() -> {
+            if (web == null) { if (fallback != null) fallback.run(); return; }
+            int c = "tick".equals(kind) ? HapticFeedbackConstants.CLOCK_TICK
+                    : "heavy".equals(kind) ? HapticFeedbackConstants.LONG_PRESS
+                    : "error".equals(kind) ? (android.os.Build.VERSION.SDK_INT >= 30 ? HapticFeedbackConstants.REJECT : HapticFeedbackConstants.LONG_PRESS)
+                    : HapticFeedbackConstants.VIRTUAL_KEY;
+            boolean ok = web.performHapticFeedback(c, HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING);
+            if (!ok && fallback != null) fallback.run();
+        });
     }
 
     @Override
@@ -159,18 +210,22 @@ public class MainActivity extends Activity implements IrBridge.Host {
     protected void onPause() {
         super.onPause();
         if (web != null) web.onPause();
+        if (platform != null) platform.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (web != null) web.onResume();
+        if (platform != null) platform.onResume();
     }
 
     @Override
     protected void onDestroy() {
         if (web != null) {
             web.removeJavascriptInterface("VigoNative");
+            web.removeJavascriptInterface("VigoPlatform");
+            if (platform != null) platform.onDestroy();
             web.destroy();
             web = null;
         }

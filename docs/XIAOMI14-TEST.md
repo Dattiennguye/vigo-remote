@@ -35,6 +35,13 @@
 - [ ] **Giảm chuyển động**: tắt hiệu ứng mở app và chuyển tab.
 - [ ] Sao lưu → xóa dữ liệu → khôi phục.
 
+## E2. Bản 2.1
+- [ ] Cài đặt → **Thử rung**: máy rung và toast báo “mô-tơ có”. Không rung → đổi **Kiểu rung** sang Hệ thống rồi thử lại; báo lại kết quả.
+- [ ] Mở app: hiệu ứng logo ≈2,7 giây mượt (không giật); chuyển tab, bấm nút, bật/tắt công tắc đều mờ dần mượt (máy 120 Hz).
+- [ ] Điều hòa: kéo thanh nhiệt độ — số đổi theo ngón tay, rung từng mức, thả tay mới phát 1 lệnh; thanh quạt cột to nhỏ chọn đúng mức.
+- [ ] Banner quảng cáo thử (“Test Ad”) hiện trên cùng; bố cục điều khiển vẫn vừa màn hình.
+- [ ] Đăng nhập Google / mua gói Pro: chỉ thử được sau khi điền ID (xem `ONLINE-SERVICES.md`).
+
 ## F. Giao diện
 - [ ] Hiệu ứng mở app và chuyển tab mượt; không giật.
 - [ ] Không bị che bởi camera đục lỗ/thanh điều hướng; cỡ chữ hệ thống lớn vẫn dùng được.

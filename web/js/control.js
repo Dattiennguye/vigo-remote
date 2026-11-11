@@ -105,23 +105,47 @@
 
   function chipGroup() { return h('div', { class: 'chips' }); }
 
+  var MODE_COLORS = { cool: ['#2EE6C5', '#4F9BFF'], heat: ['#FFC857', '#FF5C6C'], dry: ['#6C7CFF', '#B07BFF'], fan_only: ['#8E96AA', '#D5DAE8'], fan: ['#8E96AA', '#D5DAE8'] };
+  var FAN_RANK = { silent: 0, silence: 0, quiet: 0, mute: 0, ultralow: 1, lowest: 1, min: 1, low: 2, lo: 2, lowmedium: 3, mediumlow: 3, mid: 4, middle: 4, medium: 4, med: 4, normal: 4,
+    mediumhigh: 5, high: 6, hight: 6, highest: 7, max: 7, maximum: 7, superhigh: 7, 'super high': 7, turbo: 8, powerful: 8, hi_power: 8 };
+  function fanRank(k) {
+    var l = String(k).toLowerCase().trim();
+    if (l in FAN_RANK) return FAN_RANK[l];
+    var m = /^(?:level|l)?\s*(\d+)$/.exec(l);
+    return m ? 100 + Number(m[1]) : null;
+  }
+  /* Tách quạt thành: Tự động | các mức xếp từ nhỏ đến lớn | chế độ đặc biệt */
+  function fanGroups(fans) {
+    var auto = [], ranked = [], special = [];
+    fans.forEach(function (f) { var l = String(f).toLowerCase().trim(); if (l === 'auto') auto.push(f); else if (fanRank(f) !== null) ranked.push(f); else special.push(f); });
+    ranked.sort(function (x, y) { return fanRank(x) - fanRank(y); });
+    return { auto: auto, ranked: ranked, special: special };
+  }
+
   function buildAc(dev, set) {
     var tempNum = h('div', { class: 'big-temp' }), tempUnit = h('span', { class: 'deg', text: '°C' });
     var modeTxt = h('div', { class: 'ac-mode' }), subTxt = h('div', { class: 'ac-sub' });
     var disp = h('div', { class: 'ac-display' }, h('div', { class: 'tline' }, tempNum, tempUnit), modeTxt, subTxt);
 
-    var minus = h('button', { type: 'button', class: 'key vol', 'aria-label': 'Giảm nhiệt độ' }, UI.icon('minus'));
-    var plus = h('button', { type: 'button', class: 'key vol', 'aria-label': 'Tăng nhiệt độ' }, UI.icon('plus'));
+    var minus = h('button', { type: 'button', class: 'key round', 'aria-label': 'Giảm nhiệt độ' }, UI.icon('minus'));
+    var plus = h('button', { type: 'button', class: 'key round', 'aria-label': 'Tăng nhiệt độ' }, UI.icon('plus'));
     function step(dir) { return function () { acChange(dev, set, function (st) { st.temp = AC.stepTemp(set, st, dir); }); }; }
     UI.pressable(minus, { repeat: true, interval: 200, onPress: function () { step(-1)(); } });
     UI.pressable(plus, { repeat: true, interval: 200, onPress: function () { step(1)(); } });
+
+    /* Thanh kéo nhiệt độ: kéo thấy số đổi ngay, thả tay mới gửi 1 lệnh IR (không bắn liên tục khi kéo). */
+    var tslider = UI.slider({ label: 'Nhiệt độ', values: AC.temps(set, dev.state).length ? AC.temps(set, dev.state) : [25], value: dev.state.temp, cls: 'temp',
+      format: function (v) { return v + '°'; },
+      onInput: function (v) { tempNum.textContent = String(v); },
+      onCommit: function (v) { acChange(Store.get(dev.id) ? dev : dev, set, function (st) { st.temp = v; }); } });
 
     var power = h('button', { type: 'button', class: 'key power small', 'aria-label': 'Bật hoặc tắt máy' }, UI.icon('power'));
     UI.pressable(power, { onPress: function () { acChange(dev, set, function (st) { st.power = !st.power; }, true); } });
     var timerBtn = h('button', { type: 'button', class: 'chip timer', onclick: function () { UI.haptic('nav'); timerSheet(Store.get(dev.id), set); } });
 
-    var modes = chipGroup(), fans = chipGroup(), swings = chipGroup();
-    var fanRow = h('div', { class: 'chiprow' }, h('span', { class: 'cl', text: 'Quạt' }), fans);
+    var modes = chipGroup(), fanSpecial = chipGroup(), swings = chipGroup();
+    var fanLv = null, fanLvHost = h('div', { class: 'lvhost' });
+    var fanRow = h('div', { class: 'fanrow' }, h('span', { class: 'cl', text: 'Quạt' }), h('div', { class: 'fanbody' }, fanSpecial, fanLvHost));
     var swRow = h('div', { class: 'chiprow' }, h('span', { class: 'cl', text: 'Đảo gió' }), swings);
     var modeRow = h('div', { class: 'chiprow' }, h('span', { class: 'cl', text: 'Chế độ' }), modes);
 
@@ -131,21 +155,34 @@
         box.appendChild(h('button', { type: 'button', class: 'chip' + (it === cur ? ' on' : ''), 'aria-pressed': it === cur ? 'true' : 'false', text: labelFn(it), onclick: function () { UI.haptic('press'); onPick(it); } }));
       });
     }
+    function pickFan(f) { acChange(dev, set, function (s) { s.fan = f; }); }
 
     acPaint = function () {
       var d = Store.get(dev.id); if (!d) return; dev = d;
       var st = d.state;
       disp.classList.toggle('off', !st.power);
-      tempNum.textContent = st.power || true ? String(st.temp) : '--';
+      tempNum.textContent = String(st.temp);
       modeTxt.textContent = (st.power ? '' : 'Đang tắt · ') + AC.modeLabel(st.mode);
       subTxt.textContent = 'Quạt ' + AC.fanLabel(st.fan).toLowerCase() + (st.swing ? ' · Đảo gió ' + AC.swingLabel(st.swing).toLowerCase() : '');
       power.classList.toggle('lit', st.power);
       var ts = AC.temps(set, st);
+      tslider.set(st.temp, ts.length ? ts : [st.temp]);
+      var col = MODE_COLORS[st.mode] || ['#2EE6C5', '#6C7CFF']; tslider.setColors(col[0], col[1]);
+      tslider.setDisabled(!st.power);
       minus.classList.toggle('na', !ts.length || st.temp <= ts[0]); plus.classList.toggle('na', !ts.length || st.temp >= ts[ts.length - 1]);
       var mm = AC.modes(set);
       fill(modes, mm, st.mode, AC.modeLabel, function (m) { acChange(dev, set, function (s) { s.mode = m; }); });
-      var ff = AC.fans(set, st.mode); fanRow.hidden = ff.length < 2;
-      fill(fans, ff, st.fan, AC.fanLabel, function (f) { acChange(dev, set, function (s) { s.fan = f; }); });
+      var ff = AC.fans(set, st.mode), g = fanGroups(ff);
+      fanRow.hidden = ff.length < 2;
+      var useLv = g.ranked.length >= 2;
+      fill(fanSpecial, useLv ? g.auto.concat(g.special) : ff, st.fan, AC.fanLabel, pickFan);
+      fanSpecial.hidden = !fanSpecial.children.length;
+      fanLvHost.hidden = !useLv;
+      if (useLv) {
+        var items = g.ranked.map(function (k) { return { key: k, label: AC.fanLabel(k) }; });
+        if (!fanLv) { fanLv = UI.levels({ label: 'Tốc độ quạt', items: items, value: st.fan, onCommit: pickFan }); fanLvHost.appendChild(fanLv.el); }
+        fanLv.set(st.fan, items);
+      }
       var sw = AC.swings(set, st.mode, st.fan); swRow.hidden = sw.length < 2;
       fill(swings, sw, st.swing, AC.swingLabel, function (v) { acChange(dev, set, function (s) { s.swing = v; }); });
       modeRow.hidden = mm.length < 2;
@@ -155,7 +192,7 @@
     var el = h('div', { class: 'cpad ac' },
       disp,
       h('div', { class: 'toprow' }, power, h('span', { class: 'grow' }), timerBtn),
-      h('div', { class: 'tempctl' }, minus, h('span', { class: 'tlabel', text: 'Nhiệt độ' }), plus),
+      h('div', { class: 'tempctl' }, minus, tslider.el, plus),
       modeRow, fanRow, swRow);
     acPaint();
     return el;

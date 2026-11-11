@@ -85,11 +85,25 @@
     },
 
     /* Rung phản hồi. kind: tick | click | heavy | error. Native dùng VibrationEffect; ngoài app dùng navigator.vibrate. */
-    haptic: function (kind) {
+    haptic: function (kind, mode) {
       try {
-        if (native() && typeof window.VigoNative.haptic === 'function') window.VigoNative.haptic(kind);
+        if (native() && typeof window.VigoNative.haptic === 'function') window.VigoNative.haptic(kind, mode || 'motor');
         else if (navigator.vibrate) navigator.vibrate(kind === 'error' ? [25, 40, 25] : kind === 'heavy' ? 28 : kind === 'tick' ? 8 : 16);
       } catch (e) { /* rung chỉ là phụ trợ */ }
+    },
+
+    /* Chẩn đoán rung: trả về {status, message}. */
+    hapticTest: function () {
+      if (!native() || typeof window.VigoNative.hapticTest !== 'function') {
+        var ok = !!navigator.vibrate; if (ok) navigator.vibrate(40);
+        return { status: 'demo', message: ok ? 'Chế độ Demo: dùng rung của trình duyệt.' : 'Chế độ Demo: trình duyệt này không hỗ trợ rung.' };
+      }
+      try {
+        var r = JSON.parse(window.VigoNative.hapticTest());
+        if (!r.ok) return { status: 'error', message: r.error || 'Không rung thử được' };
+        if (!r.hasVibrator) return { status: 'error', message: 'Máy báo KHÔNG có mô-tơ rung (Android ' + r.sdk + ').' };
+        return { status: 'sent', message: 'Đã rung thử: mô-tơ có, Android ' + r.sdk + (r.amplitudeControl ? ', chỉnh được cường độ' : '') + '. Không thấy rung? Thử đổi “Kiểu rung”.' };
+      } catch (e) { return { status: 'error', message: 'Lỗi rung thử: ' + e.message }; }
     },
 
     /* Dùng phím âm lượng vật lý để điều khiển TV (chỉ có tác dụng trong app Android). */

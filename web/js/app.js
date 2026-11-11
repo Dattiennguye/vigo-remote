@@ -53,8 +53,8 @@
   function splash() {
     var s = document.getElementById('splash'); if (!s) return;
     var calm = document.documentElement.classList.contains('calm');
-    var end = function () { s.classList.add('done'); setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, calm ? 0 : 420); };
-    if (calm) end(); else setTimeout(end, 950);
+    var end = function () { s.classList.add('done'); setTimeout(function () { if (s.parentNode) s.parentNode.removeChild(s); }, calm ? 0 : 600); };
+    if (calm) end(); else setTimeout(end, 2750);
   }
 
   function init() {
@@ -72,6 +72,9 @@
     showTab('control', true);
     if (Store.error()) UI.toast('err', Store.error());
     splash();
+    /* Quảng cáo chỉ hiện cho bản miễn phí; kiểm tra lại quyền Pro khi mở app (chỉ trong ứng dụng Android) */
+    window.VigoOnline.setAds(!Store.pro().active);
+    window.VigoOnline.checkEntitlement();
     document.addEventListener('visibilitychange', function () { if (!document.hidden) window.VigoControl.sync(); });
   }
 

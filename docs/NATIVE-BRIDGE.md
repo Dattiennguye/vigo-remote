@@ -8,7 +8,8 @@ Giao diện tìm đối tượng `window.VigoNative` (xem `web/js/ir-bridge.js`)
 | `hasIrEmitter()` | `{"ok":true,"available":true}` hoặc `{"ok":false,"error":"..."}` |
 | `getCarrierFrequencies()` | `{"ok":true,"ranges":[[30000,60000]]}` |
 | `transmit(freqHz:int, patternJson:string)` | `{"ok":true}` hoặc `{"ok":false,"error":"..."}` |
-| `haptic(kind:string)` | không trả về. `tick` / `click` / `heavy` / `error` (VibrationEffect predefined trên Android 10+) |
+| `haptic(kind, mode)` | không trả về. kind: `tick`/`click`/`heavy`/`error`; mode: `motor` (Vibrator one-shot, mặc định) hoặc `system` (performHapticFeedback, có fallback) |
+| `hapticTest()` | JSON `{hasVibrator, amplitudeControl, sdk}` rồi rung thử |
 | `setVolumeKeys(enabled:bool)` | `{"ok":true}`. Bật thì phím âm lượng vật lý được chặn và gửi `window.__vigoKey('vol_up'\|'vol_down')` |
 | `keepScreenOn(enabled:bool)` | `{"ok":true}`. Giữ màn hình sáng (FLAG_KEEP_SCREEN_ON) |
 | `vibrate(ms:int)` | không trả về (cũ, còn giữ để tương thích) |
@@ -40,3 +41,6 @@ Thêm một mục vào `VigoIR.PROTOCOLS` trong `web/js/ir-protocols.js` với `
 
 ## Hẹn giờ native (tùy chọn)
 Hẹn giờ tắt điều hòa hiện chạy trong JavaScript nên cần giữ app mở (có thể khóa màn hình ở một số máy, nhưng nếu hệ thống đóng app thì lệnh không được gửi). Muốn hẹn giờ khi app đóng: thêm `AlarmManager` + `BroadcastReceiver` gọi `ConsumerIrManager.transmit` trực tiếp (cần quyền báo thức chính xác trên Android 12+).
+
+## Cầu nối thứ hai: `window.VigoPlatform`
+Đăng nhập Google, Google Play Billing, AdMob — xem `ONLINE-SERVICES.md`.
