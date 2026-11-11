@@ -237,3 +237,19 @@ label.fl{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-
 .lv-bars{height:38px} .levels{padding:6px 10px 4px} .lv-name{margin-top:3px;font-size:12px}
 .cpad.ac{gap:10px} .ac-display{padding:0}
 .slider{height:58px} .s-thumb{width:56px}
+
+/* ---- Giọng nói ---- */
+.vsheet .v-stage{display:flex;flex-direction:column;align-items:center;gap:12px;padding:8px 0 4px;text-align:center}
+.v-mic{position:relative;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--a1),var(--a2,#6C7CFF));color:#06121a;transition:transform .35s var(--ease),opacity .3s ease}
+.v-mic .ico{width:34px;height:34px;position:relative;z-index:1}
+.v-mic.pressed{transition-duration:.06s;transform:scale(.94)} .v-mic[aria-disabled="true"]{opacity:.4}
+.v-mic::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;opacity:0;pointer-events:none}
+.v-mic.listening::after{animation:vpulse 1.5s ease-out infinite}
+@keyframes vpulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.7);opacity:0}}
+.calm .v-mic.listening::after{animation:none;opacity:.25}
+.v-tr{font-size:18px;font-weight:600;min-height:26px;overflow-wrap:anywhere} .v-stat{font-size:13px;min-height:18px}
+.v-chips{margin:6px 0} .v-res{display:flex;flex-direction:column;gap:6px;margin:4px 0}
+.v-row{padding:10px 12px;border-radius:12px;background:var(--s2);font-size:14px} .v-row.ok{color:var(--a1)} .v-row.err{color:#ff8a96} .v-row.warn{color:#ffc857}
+.v-type{display:flex;gap:8px;margin:10px 0}
+.v-in{flex:1;min-width:0;min-height:48px;padding:0 14px;border-radius:14px;background:var(--s2);border:1px solid var(--line);color:inherit;font:inherit;font-size:16px}
+.v-type .btn.na{opacity:.4;pointer-events:none}

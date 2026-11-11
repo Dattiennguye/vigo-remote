@@ -16,7 +16,7 @@
     },
     call: function (name, arg) {
       var n = native();
-      if (!n || typeof n[name] !== 'function') { emit({ type: name === 'signIn' || name === 'signOut' ? 'auth' : 'plans', ok: false, error: 'Chỉ có trong ứng dụng Android' }); return false; }
+      if (!n || typeof n[name] !== 'function') { emit({ type: /Voice$/.test(name) ? 'voice' : name === 'signIn' || name === 'signOut' ? 'auth' : 'plans', state: /Voice$/.test(name) ? 'error' : undefined, ok: false, error: 'Chỉ có trong ứng dụng Android' }); return false; }
       try { arg === undefined ? n[name]() : n[name](arg); return true; } catch (e) { emit({ type: 'error', ok: false, error: e.message }); return false; }
     },
     signIn: function () { return P.call('signIn'); },

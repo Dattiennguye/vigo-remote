@@ -35,3 +35,6 @@ docs/                STATUS, NATIVE-BRIDGE, BUILD-APK, XIAOMI14-TEST, IR-LIBRARY
 
 ## Đọc trước
 `docs/STATUS.md`: chức năng nào chạy thật, chức năng nào chỉ là Demo, và những gì **chưa được kiểm chứng trên phần cứng**.
+
+## Giọng nói
+Nút micro ở màn hình Điều khiển: ra lệnh tiếng Việt (âm lượng, kênh, điều hướng, nhiệt độ, chế độ, quạt) hoặc gõ lệnh. Hồng ngoại không gõ chữ vào TV được nên không có tìm kiếm bằng giọng nói trên TV. Xem docs/STATUS.md.

@@ -47,3 +47,11 @@
 - [ ] Không bị che bởi camera đục lỗ/thanh điều hướng; cỡ chữ hệ thống lớn vẫn dùng được.
 - [ ] Nút Back của Android: đóng hộp thoại → đóng trang → về Điều khiển → thoát app.
 - [ ] Không có mục lịch sử ở bất kỳ đâu.
+
+## G. Giọng nói (bản 2.2)
+- [ ] Bấm nút micro → hỏi quyền micro lần đầu → cho phép → hiện “Đang nghe…”.
+- [ ] Nói “tăng âm lượng 3 lần” → TV tăng đúng 3 nấc.
+- [ ] Nói “chuyển kênh 12”, “tắt tiếng”, “quay lại rồi xuống 3 lần rồi OK”.
+- [ ] Điều hòa: “bật điều hòa”, “nhiệt độ 24 độ”, “giảm 2 độ”, “quạt mạnh”.
+- [ ] Tắt Internet → báo lỗi mạng rõ ràng; vẫn gõ lệnh được.
+- [ ] Từ chối quyền micro → báo rõ, không treo.

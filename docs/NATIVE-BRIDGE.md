@@ -44,3 +44,7 @@ Hẹn giờ tắt điều hòa hiện chạy trong JavaScript nên cần giữ a
 
 ## Cầu nối thứ hai: `window.VigoPlatform`
 Đăng nhập Google, Google Play Billing, AdMob — xem `ONLINE-SERVICES.md`.
+
+### Giọng nói (VigoPlatform)
+- `startVoice()` / `stopVoice()`: dùng `SpeechRecognizer` (vi-VN, có kết quả tạm). Tự xin quyền `RECORD_AUDIO` lần đầu (MainActivity chuyển kết quả vào `PlatformBridge.onPermissionResult`).
+- Sự kiện đẩy về: `{type:'voice', ok, state:'listening'|'partial'|'final'|'processing'|'error', text, alts, error}`. `getConfig().voice` cho biết máy có dịch vụ nhận giọng nói không.

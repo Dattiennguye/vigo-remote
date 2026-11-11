@@ -15,6 +15,7 @@ jobs:
         run: |
           node tests/protocols.test.js
           node tests/library.test.js
+          node tests/voice.test.js
 
       - name: Đồng bộ giao diện web vào assets Android
         run: bash tools/sync-web.sh

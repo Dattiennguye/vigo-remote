@@ -160,7 +160,7 @@
 
     root.appendChild(UI.sectionTitle('Giới thiệu'));
     var ab = h('div', { class: 'card' });
-    ab.appendChild(row('shield', 'Quyền riêng tư', 'Không quảng cáo, không đăng nhập, không máy chủ, không xin quyền Internet.', function () { aboutPage('privacy'); }));
+    ab.appendChild(row('shield', 'Quyền riêng tư', 'Điều khiển chạy ngoại tuyến. Internet chỉ cho đăng nhập, thanh toán, quảng cáo và nhận giọng nói.', function () { aboutPage('privacy'); }));
     ab.appendChild(row('info', 'Nguồn mã IR & giấy phép', 'Flipper-IRDB (CC0) · SmartIR (MIT)', function () { aboutPage('sources'); }));
     ab.appendChild(h('p', { class: 'row-sub pad-s', text: 'VIGO Remote 2.0.0' }));
     root.appendChild(ab);
@@ -174,8 +174,9 @@
         b.appendChild(h('div', { class: 'card pad' },
           h('p', { text: 'Điều khiển TV và điều hòa hoạt động ngoại tuyến. Thiết bị, mã IR và cài đặt chỉ lưu trên máy này; ứng dụng không ghi lịch sử thao tác.' }),
           h('p', { text: 'Internet chỉ được dùng cho 3 việc, do lớp native xử lý (giao diện không tải trang web nào): đăng nhập Google (tên và email), thanh toán gói Pro qua Google Play, và quảng cáo AdMob cho bản miễn phí.' }),
+          h('p', { text: 'Giọng nói: chỉ khi bạn bấm nút micro, âm thanh được gửi cho dịch vụ nhận giọng nói của Android/Google để chuyển thành chữ (có thể cần Internet). VIGO không ghi âm, không lưu âm thanh hay nội dung lệnh. Có thể gõ lệnh thay cho nói.' }),
           h('p', { text: 'Quảng cáo AdMob có thể dùng mã định danh quảng cáo của thiết bị. Gói Pro tắt quảng cáo.' }),
-          h('p', { class: 'muted', text: 'Quyền sử dụng: phát hồng ngoại, rung, Internet, trạng thái mạng, mã định danh quảng cáo.' })));
+          h('p', { class: 'muted', text: 'Quyền sử dụng: phát hồng ngoại, rung, Internet, trạng thái mạng, mã định danh quảng cáo, micro (chỉ khi dùng giọng nói).' })));
       } else {
         var card = h('div', { class: 'card pad' });
         Lib.sources().forEach(function (s) { card.appendChild(h('p', null, h('b', { text: s.name + ' — ' + s.what }), h('br'), h('span', { class: 'muted', text: 'Giấy phép ' + s.license + ' · ' + s.url }))); });

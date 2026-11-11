@@ -8,9 +8,15 @@
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     <uses-permission android:name="android.permission.TRANSMIT_IR" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Micro: chỉ dùng khi bạn bấm nút micro để ra lệnh giọng nói; không ghi âm nền. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- required=false: vẫn cài được trên máy không có IR; app sẽ báo lỗi rõ ràng thay vì giả vờ phát. -->
     <uses-feature android:name="android.hardware.consumerir" android:required="false" />
+
+    <queries>
+        <intent><action android:name="android.speech.RecognitionService" /></intent>
+    </queries>
 
     <application
         android:allowBackup="false"

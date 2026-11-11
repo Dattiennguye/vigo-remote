@@ -13,7 +13,17 @@ const FAKE = () => {
   window.__plat = { ads: [], calls: [] };
   const emit = (o) => setTimeout(() => window.__vigoPlatform(JSON.stringify(o)), 20);
   window.VigoPlatform = {
-    getConfig: () => JSON.stringify({ ok: true, signIn: true, ads: true, billing: true }),
+    getConfig: () => JSON.stringify({ ok: true, signIn: true, ads: true, billing: true, voice: true }),
+    startVoice: () => {
+      window.__plat.calls.push('startVoice');
+      emit({ type: 'voice', ok: true, state: 'listening' });
+      if (window.__voiceMode === 'error') setTimeout(() => window.__vigoPlatform(JSON.stringify({ type: 'voice', ok: false, state: 'error', error: 'Chưa cấp quyền micro.' })), 80);
+      else {
+        setTimeout(() => window.__vigoPlatform(JSON.stringify({ type: 'voice', ok: true, state: 'partial', text: 'tăng âm' })), 80);
+        setTimeout(() => window.__vigoPlatform(JSON.stringify({ type: 'voice', ok: true, state: 'final', text: window.__voiceText || 'tăng âm lượng 3 lần', alts: ['tăng âm lượng 3 lần'] })), 160);
+      }
+    },
+    stopVoice: () => window.__plat.calls.push('stopVoice'),
     signIn: () => { window.__plat.calls.push('signIn'); emit({ type: 'auth', ok: true, email: 'dat@gmail.com', name: 'Dat' }); },
     signOut: () => { window.__plat.calls.push('signOut'); emit({ type: 'auth', ok: true, signedOut: true }); },
     loadPlans: () => emit({ type: 'plans', ok: true, plans: [{ id: 'pro-6m', title: 'VIGO Pro', price: '99.000 ₫', period: 'P6M' }, { id: 'pro-1y', title: 'VIGO Pro', price: '179.000 ₫', period: 'P1Y' }] }),
@@ -418,6 +428,74 @@ async function hitTest(p, selector, scroll) {
   }
   ok('điều hòa có thanh kéo: không bị che/tràn ở 3 cỡ màn hình');
   assert.deepStrictEqual(p.errs, [], p.errs.join('\n'));
+  await p.ctx.close();
+
+  /* 31. Giọng nói: nút micro, nhận lệnh từ native (giả lập), gõ lệnh, lỗi, Demo */
+  p = await open(browser, { width: 393, height: 852 });
+  await addTv(p);
+  assert.strictEqual(await p.locator('#view-control .key.mic').count(), 1, 'có nút micro');
+  await p.evaluate(() => { window.__tx.length = 0; });
+  await p.click('#view-control .key.mic'); await p.waitForSelector('.vsheet');
+  await p.waitForTimeout(300);
+  assert.ok((await p.evaluate(() => window.__plat.calls)).includes('startVoice'), 'mở bảng giọng nói là bắt đầu nghe');
+  await p.waitForTimeout(1500);
+  const vtx = await p.evaluate(() => window.__tx.length);
+  assert.strictEqual(vtx, 3, 'nói "tăng âm lượng 3 lần" → đúng 3 lệnh IR, thực tế: ' + vtx);
+  assert.ok(/3/.test(await p.locator('.v-chips').innerText()), 'hiện lệnh đã hiểu');
+  assert.ok((await p.locator('.v-row.ok').count()) >= 1, 'báo đã gửi');
+  ok('giọng nói (giả lập native): nghe → hiểu → gửi đúng 3 lệnh âm lượng');
+  /* gõ lệnh chuỗi */
+  await p.evaluate(() => { window.__tx.length = 0; });
+  await p.fill('.v-in', 'tắt tiếng rồi quay lại'); await p.click('.v-type .btn.primary'); await p.waitForTimeout(1000);
+  assert.strictEqual(await p.evaluate(() => window.__tx.length), 2, 'chuỗi 2 lệnh → 2 lần phát');
+  /* câu không hiểu: không phát gì */
+  await p.evaluate(() => { window.__tx.length = 0; });
+  await p.fill('.v-in', 'hôm nay trời đẹp'); await p.press('.v-in', 'Enter'); await p.waitForTimeout(400);
+  assert.strictEqual(await p.evaluate(() => window.__tx.length), 0, 'câu không hiểu thì không phát IR');
+  assert.ok(/Chưa hiểu/.test(await p.locator('.v-stat').innerText()));
+  ok('gõ lệnh: chuỗi "rồi" chạy đúng thứ tự; câu không hiểu không phát gì');
+  /* lỗi micro */
+  await p.evaluate(() => { window.__voiceMode = 'error'; window.__plat.calls.length = 0; });
+  await p.click('.v-mic'); await p.waitForTimeout(400);
+  assert.ok(/quyền micro/.test(await p.locator('.v-stat').innerText()), 'hiện lỗi thật từ native');
+  ok('lỗi nhận giọng nói được báo rõ, không giả vờ thành công');
+  /* đóng bảng khi đang nghe → dừng nghe */
+  await p.evaluate(() => { window.__voiceMode = 'ok'; window.__voiceText = 'x'; window.__plat.calls.length = 0; });
+  await p.click('.v-mic'); await p.waitForTimeout(40);
+  await p.evaluate(() => window.VigoUI.closeSheet()); await p.waitForTimeout(300);
+  assert.ok((await p.evaluate(() => window.__plat.calls)).includes('stopVoice'), 'đóng bảng thì dừng micro');
+  assert.deepStrictEqual(p.errs, [], p.errs.join('\n'));
+  await p.ctx.close();
+  /* Demo (ngoài app): chỉ gõ lệnh, nói rõ không phát IR thật */
+  p = await open(browser, { width: 393, height: 852 }, { native: false });
+  await addTv(p);
+  await p.click('#view-control .key.mic'); await p.waitForSelector('.vsheet');
+  assert.ok(/Android/.test(await p.locator('.v-stat').innerText()), 'báo giọng nói chỉ có trong app');
+  await p.fill('.v-in', 'tăng âm lượng'); await p.click('.v-type .btn.primary'); await p.waitForTimeout(500);
+  assert.ok(/Demo/.test(await p.locator('.v-res').innerText()), 'Demo phải ghi rõ chưa phát IR thật');
+  assert.deepStrictEqual(p.errs, [], p.errs.join('\n'));
+  ok('Demo: chỉ gõ lệnh, nói rõ "chưa phát IR thật"');
+  await p.ctx.close();
+
+  /* 32. Giọng nói với điều hòa: máy tắt thì lệnh nhiệt độ KHÔNG gửi (báo rõ); bật rồi chỉnh thì gửi */
+  p = await open(browser, { width: 393, height: 852 });
+  await p.click('text=Thêm thiết bị'); await p.click('.bigcard >> nth=1');
+  await p.waitForSelector('.row.tap:has-text("Daikin")'); await p.click('.row.tap:has-text("Daikin")'); await p.waitForSelector('.setname');
+  await p.click('button:has-text("Dùng bộ mã này")'); await p.click('#sheet-root .sheet button.primary');
+  await p.waitForSelector('#view-control .cpad.ac .big-temp', { timeout: 8000 }); await p.waitForTimeout(400);
+  await p.evaluate(() => { window.__tx.length = 0; window.__voiceText = 'nhiệt độ 24 độ'; });
+  await p.click('#view-control .key.mic'); await p.waitForSelector('.vsheet'); await p.waitForTimeout(700);
+  assert.strictEqual(await p.evaluate(() => window.__tx.length), 0, 'máy tắt → không gửi');
+  assert.ok(/CHƯA gửi/.test(await p.locator('.v-res').innerText()), 'báo rõ chưa gửi');
+  await p.fill('.v-in', 'bật điều hòa rồi nhiệt độ 24 độ'); await p.click('.v-type .btn.primary'); await p.waitForTimeout(900);
+  assert.strictEqual(await p.evaluate(() => window.__tx.length), 2, 'bật + chỉnh nhiệt độ → 2 lệnh');
+  assert.strictEqual(await p.evaluate(() => window.VigoStore.active().state.temp), 24);
+  await p.evaluate(() => { window.__tx.length = 0; });
+  await p.fill('.v-in', 'giảm 2 độ'); await p.click('.v-type .btn.primary'); await p.waitForTimeout(500);
+  assert.strictEqual(await p.evaluate(() => window.VigoStore.active().state.temp), 22);
+  assert.strictEqual(await p.evaluate(() => window.__tx.length), 1, 'giảm 2 độ gộp thành 1 lệnh');
+  assert.deepStrictEqual(p.errs, [], p.errs.join('\n'));
+  ok('giọng nói điều hòa: máy tắt không gửi và báo rõ; bật + nhiệt độ + giảm độ đúng trạng thái');
   await p.ctx.close();
 
   await browser.close();

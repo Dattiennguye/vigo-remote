@@ -1,7 +1,14 @@
 package vn.vigo.remote;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.net.Uri;
 import android.os.CancellationSignal;
 import android.view.View;
@@ -95,12 +102,118 @@ public class PlatformBridge {
             o.put("signIn", !str(R.string.google_web_client_id).trim().isEmpty());
             o.put("ads", activity.getResources().getBoolean(R.bool.vigo_ads_enabled));
             o.put("billing", true);
+            o.put("voice", SpeechRecognizer.isRecognitionAvailable(activity));
             o.put("plan6m", str(R.string.pro_plan_6m));
             o.put("plan1y", str(R.string.pro_plan_1y));
             return o.toString();
         } catch (Exception e) {
             return "{\"ok\":false}";
         }
+    }
+
+
+    /* ---------------- Giọng nói (SpeechRecognizer của hệ thống) ---------------- */
+
+    static final int REQ_AUDIO = 4107;
+    private SpeechRecognizer recognizer;
+    private boolean voiceWanted = false;
+
+    private void voiceEvent(String state, String text, String err) {
+        JSONObject o = ev("voice", err == null);
+        try {
+            o.put("state", state);
+            if (text != null) o.put("text", text);
+            if (err != null) o.put("error", err);
+        } catch (Exception ignored) { }
+        emit(o);
+    }
+
+    @JavascriptInterface
+    public void startVoice() {
+        activity.runOnUiThread(() -> {
+            if (!SpeechRecognizer.isRecognitionAvailable(activity)) {
+                voiceEvent("error", null, "Máy chưa có dịch vụ nhận giọng nói (cần Google/Speech Services). Bạn vẫn có thể gõ lệnh.");
+                return;
+            }
+            if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                voiceWanted = true;
+                activity.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_AUDIO);
+                return;
+            }
+            beginListening();
+        });
+    }
+
+    /** MainActivity chuyển kết quả hỏi quyền micro vào đây. */
+    public void onPermissionResult(int requestCode, int[] results) {
+        if (requestCode != REQ_AUDIO) return;
+        boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+        if (granted && voiceWanted) beginListening();
+        else if (!granted) voiceEvent("error", null, "Chưa cấp quyền micro. Vào Cài đặt hệ thống → Ứng dụng → VIGO → Quyền để bật, hoặc gõ lệnh.");
+        voiceWanted = false;
+    }
+
+    private void beginListening() {
+        try {
+            if (recognizer != null) { recognizer.destroy(); recognizer = null; }
+            recognizer = SpeechRecognizer.createSpeechRecognizer(activity);
+            recognizer.setRecognitionListener(new RecognitionListener() {
+                @Override public void onReadyForSpeech(Bundle b) { voiceEvent("listening", null, null); }
+                @Override public void onBeginningOfSpeech() { }
+                @Override public void onRmsChanged(float v) { }
+                @Override public void onBufferReceived(byte[] b) { }
+                @Override public void onEndOfSpeech() { voiceEvent("processing", null, null); }
+                @Override public void onEvent(int i, Bundle b) { }
+                @Override public void onPartialResults(Bundle b) {
+                    ArrayList<String> l = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                    if (l != null && !l.isEmpty()) voiceEvent("partial", l.get(0), null);
+                }
+                @Override public void onResults(Bundle b) {
+                    ArrayList<String> l = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                    if (l == null || l.isEmpty()) { voiceEvent("error", null, "Không nghe rõ. Thử nói lại gần micro hơn."); return; }
+                    JSONObject o = ev("voice", true);
+                    try {
+                        o.put("state", "final");
+                        o.put("text", l.get(0));
+                        JSONArray alts = new JSONArray();
+                        for (String a : l) alts.put(a);
+                        o.put("alts", alts);
+                    } catch (Exception ignored) { }
+                    emit(o);
+                }
+                @Override public void onError(int code) { voiceEvent("error", null, voiceError(code)); }
+            });
+            Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "vi-VN");
+            i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+            i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+            i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, activity.getPackageName());
+            recognizer.startListening(i);
+        } catch (Exception e) {
+            voiceEvent("error", null, "Không bật được nhận giọng nói: " + e.getMessage());
+        }
+    }
+
+    private String voiceError(int code) {
+        switch (code) {
+            case SpeechRecognizer.ERROR_NO_MATCH:
+            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT: return "Không nghe thấy giọng nói. Bấm micro và nói lại.";
+            case SpeechRecognizer.ERROR_NETWORK:
+            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT: return "Nhận giọng nói cần Internet nhưng mạng không ổn. Kiểm tra mạng hoặc gõ lệnh.";
+            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS: return "Chưa cấp quyền micro.";
+            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY: return "Dịch vụ giọng nói đang bận, thử lại sau giây lát.";
+            case SpeechRecognizer.ERROR_AUDIO: return "Lỗi thu âm từ micro.";
+            default: return "Nhận giọng nói lỗi (mã " + code + "). Bạn có thể gõ lệnh.";
+        }
+    }
+
+    @JavascriptInterface
+    public void stopVoice() {
+        activity.runOnUiThread(() -> {
+            voiceWanted = false;
+            if (recognizer != null) { try { recognizer.stopListening(); } catch (Exception ignored) { } }
+        });
     }
 
     /* ---------------- Đăng nhập Google ---------------- */
@@ -336,5 +449,5 @@ public class PlatformBridge {
 
     public void onPause() { if (adView != null) adView.pause(); }
     public void onResume() { if (adView != null && adContainer.getVisibility() == View.VISIBLE) adView.resume(); }
-    public void onDestroy() { if (adView != null) adView.destroy(); if (billing != null) billing.endConnection(); }
+    public void onDestroy() { if (recognizer != null) recognizer.destroy(); if (adView != null) adView.destroy(); if (billing != null) billing.endConnection(); }
 }

@@ -25,3 +25,10 @@ Mở `web/index.html` ngoài app: mọi nút báo “Demo — chưa phát IR th�
 - Hẹn giờ tắt điều hòa chỉ chạy khi app còn mở.
 - Điều hòa không báo trạng thái ngược: nếu đổi bằng remote gốc, app có thể hiển thị lệch.
 - Nâng cấp từ 1.x: giữ thiết bị TV, bỏ lịch sử và điều hòa cũ (bản cũ không có mã điều hòa).
+
+## Giọng nói (bản 2.2)
+- Là **điều khiển bằng giọng nói** (nói “tăng âm lượng 3 lần”, “kênh 12”, “bật điều hòa”, “nhiệt độ 24”…), không phải tìm kiếm/nhập chữ bằng giọng nói trên TV: hồng ngoại chỉ gửi mã phím, không gõ được chữ vào TV.
+- Phần hiểu câu tiếng Việt (`web/js/voice.js`) và thực thi lệnh đã có kiểm thử tự động. Phần nhận giọng nói của Android (SpeechRecognizer, quyền micro) **chưa kiểm chứng trên máy thật**; cần dịch vụ Google/Speech Services và thường cần Internet.
+- Câu không hiểu thì báo lại, không đoán. Điều hòa đang tắt thì lệnh nhiệt độ/chế độ chỉ lưu, không gửi, và báo rõ.
+- Có thể gõ lệnh thay cho nói (cũng dùng được ở Demo).
+- Chưa làm: gõ chữ lên bàn phím ảo của TV bằng phím điều hướng (cần biết bố cục bàn phím từng TV).

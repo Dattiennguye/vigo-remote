@@ -190,6 +190,12 @@ public class MainActivity extends Activity implements IrBridge.Host {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (platform != null) platform.onPermissionResult(requestCode, grantResults);
+    }
+
+    @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if (web != null) web.saveState(outState);

@@ -1,7 +1,7 @@
 /* VIGO — màn hình Điều khiển (màn hình đầu tiên). TV tối giản đặt thấp để bấm bằng ngón cái; điều hòa theo trạng thái. */
 (function () {
   'use strict';
-  var UI = window.VigoUI, h = UI.h, Store = window.VigoStore, Bridge = window.IRBridge, Lib = window.VigoLib, AC = window.VigoAC;
+  var UI = window.VigoUI, Online = window.VigoOnline, Voice = window.VigoVoice, h = UI.h, Store = window.VigoStore, Bridge = window.IRBridge, Lib = window.VigoLib, AC = window.VigoAC;
   var root = null, statusEl = null, statusT = null, acSets = {}, acErr = {}, tabActive = true, acPaint = null;
 
   var KEY_LABEL = { power: 'Nguồn', mute: 'Tắt tiếng', vol_up: 'Âm lượng +', vol_down: 'Âm lượng −', up: 'Lên', down: 'Xuống', left: 'Trái', right: 'Phải',
@@ -29,7 +29,172 @@
   function pressTv(dev, key) {
     var c = dev.codes[key];
     if (!c || !c.spec) { UI.haptic('error'); setStatus('err', 'Bộ mã này không có phím “' + (KEY_LABEL[key] || key) + '”'); return; }
-    transmit(c.spec, keyLabel(dev, key));
+    return transmit(c.spec, keyLabel(dev, key));
+  }
+
+
+  /* ================= Giọng nói =================
+   * Hồng ngoại KHÔNG gõ được chữ vào TV, nên đây là điều khiển bằng giọng nói: lời nói → phím remote / thao tác điều hòa.
+   * Nhận giọng nói do Android (Google) xử lý, có thể cần Internet; ngoài app hoặc khi lỗi vẫn gõ lệnh được. */
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function targetDev(type) {
+    var a = Store.active();
+    if (a && a.type === type) return a;
+    return Store.devices().filter(function (d) { return d.type === type; })[0] || null;
+  }
+  function pickFanKey(set, mode, want) {
+    var ff = AC.fans(set, mode), g = fanGroups(ff), r = g.ranked;
+    if (want === 'auto') return g.auto[0] || null;
+    if (want === 'quiet') return ff.filter(function (f) { return fanRank(f) === 0; })[0] || r[0] || null;
+    if (!r.length) return null;
+    return want === 'high' ? r[r.length - 1] : want === 'low' ? r[0] : r[Math.floor((r.length - 1) / 2)];
+  }
+  function pickMode(set, want) {
+    var ms = AC.modes(set);
+    var cands = want === 'fan_only' ? ['fan_only', 'fan'] : want === 'auto' ? ['auto', 'heat_cool'] : [want];
+    for (var i = 0; i < cands.length; i++) if (ms.indexOf(cands[i]) >= 0) return cands[i];
+    return null;
+  }
+
+  async function runTv(a) {
+    var dev = targetDev('tv');
+    if (!dev) return { ok: false, text: 'Chưa có TV nào — hãy thêm thiết bị TV.' };
+    var keys = a.digits ? a.digits.split('') : [a.key];
+    var reps = a.digits ? 1 : (a.count || 1);
+    var delay = a.digits ? 450 : (a.key && a.key.indexOf('vol') === 0 ? 140 : 260);
+    var demo = false;
+    for (var r = 0; r < reps; r++) {
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (!(dev.codes[k] && dev.codes[k].spec) && a.alt && dev.codes[a.alt] && dev.codes[a.alt].spec) k = a.alt;
+        var c = dev.codes[k];
+        if (!c || !c.spec) { UI.haptic('error'); return { ok: false, text: 'Bộ mã “' + dev.name + '” không có phím “' + (KEY_LABEL[k] || k) + '”.' }; }
+        var res = Bridge.send(c.spec);
+        if (res.status === 'demo') demo = true;
+        else if (res.status !== 'sent') { UI.haptic('error'); return { ok: false, text: res.message }; }
+        if (!(r === reps - 1 && i === keys.length - 1)) await sleep(delay);
+      }
+    }
+    UI.haptic('press');
+    return { ok: true, demo: demo, text: a.label + (reps > 1 ? ' ×' + reps : '') };
+  }
+
+  async function runAc(a) {
+    var dev = targetDev('ac');
+    if (!dev) return { ok: false, text: 'Chưa có điều hòa nào — hãy thêm thiết bị điều hòa.' };
+    var set = acSets[dev.ac.setId];
+    if (!set) {
+      try { set = await Lib.acSet(dev.ac.setId); acSets[dev.ac.setId] = set; }
+      catch (e) { return { ok: false, text: 'Không nạp được bộ mã điều hòa.' }; }
+    }
+    dev = Store.get(dev.id);
+    var mut;
+    if (a.op === 'power') mut = function (st) { st.power = !!a.on; };
+    else if (a.op === 'temp') mut = function (st) { st.temp = a.value; };
+    else if (a.op === 'step') mut = function (st) { var dir = a.value < 0 ? -1 : 1; for (var i = 0; i < Math.abs(a.value); i++) st.temp = AC.stepTemp(set, st, dir); };
+    else if (a.op === 'mode') {
+      var m = pickMode(set, a.value);
+      if (!m) return { ok: false, text: 'Bộ mã này không có ' + a.label.toLowerCase() + '.' };
+      mut = function (st) { st.mode = m; };
+    } else if (a.op === 'fan') {
+      var f = pickFanKey(set, dev.state.mode, a.value);
+      if (!f) return { ok: false, text: 'Chế độ hiện tại không có mức “' + a.label.toLowerCase() + '”.' };
+      mut = function (st) { st.fan = f; };
+    } else return { ok: false, text: 'Lệnh không hỗ trợ.' };
+    var willSend = dev.state.power || a.op === 'power';
+    acChange(dev, set, mut, a.op === 'power');
+    if (!willSend) return { ok: false, text: a.label + ' — đã lưu nhưng CHƯA gửi vì máy đang tắt. Hãy nói “bật điều hòa” trước.' };
+    return { ok: true, demo: Bridge.capabilities().mode === 'demo', text: a.label };
+  }
+
+  function contextNow() {
+    var a = Store.active();
+    return { activeType: a ? a.type : 'tv', hasTv: !!targetDev('tv'), hasAc: !!targetDev('ac') };
+  }
+
+  var vui = null;
+  function voiceSheet() {
+    if (!Voice) { UI.toast('err', 'Thiếu mô-đun giọng nói'); return; }
+    var cfg = Online.config();
+    var nativeOk = Online.available() && cfg.voice !== false;
+    var listening = false, busy = false;
+    var tr = h('div', { class: 'v-tr', 'aria-live': 'polite', text: nativeOk ? 'Đang chuẩn bị micro…' : 'Gõ lệnh vào ô bên dưới' });
+    var stat = h('div', { class: 'v-stat muted', text: nativeOk ? '' : (Online.available() ? 'Máy này chưa có dịch vụ nhận giọng nói — bạn vẫn gõ lệnh được.' : 'Nhận giọng nói chỉ có trong ứng dụng Android (đang chạy Demo) — bạn vẫn gõ lệnh được.') });
+    var mic = h('button', { type: 'button', class: 'v-mic', 'aria-label': 'Nói', 'aria-disabled': nativeOk ? null : 'true' }, UI.icon('mic'));
+    var chips = h('div', { class: 'chips wrap v-chips' });
+    var res = h('div', { class: 'v-res' });
+    var inp = h('input', { type: 'text', class: 'v-in', placeholder: 'Gõ lệnh, ví dụ: tăng âm lượng 3 lần', enterkeyhint: 'send', autocomplete: 'off', 'aria-label': 'Gõ lệnh' });
+    var go = h('button', { type: 'button', class: 'btn primary', text: 'Chạy' });
+    var ex = h('div', { class: 'chips wrap' });
+    Voice.EXAMPLES.forEach(function (t) { ex.appendChild(h('button', { type: 'button', class: 'chip', text: t, onclick: function () { UI.haptic('nav'); inp.value = t; run(t, true); } })); });
+
+    function setListening(v) { listening = v; mic.classList.toggle('listening', v); mic.setAttribute('aria-label', v ? 'Dừng nghe' : 'Nói'); }
+    function showResults(list) {
+      res.replaceChildren();
+      list.forEach(function (r) { res.appendChild(h('div', { class: 'v-row ' + (r.ok ? (r.demo ? 'warn' : 'ok') : 'err'), text: (r.ok ? (r.demo ? '◐ ' : '✓ ') : '✕ ') + r.text + (r.demo ? ' (Demo — chưa phát IR thật)' : '') })); });
+    }
+    async function run(text, typed, alts) {
+      if (busy) return;
+      var ctx = contextNow(), parsed = Voice.parse(text, ctx), used = text;
+      if (!parsed.actions.length && alts) {
+        for (var i = 0; i < alts.length && !parsed.actions.length; i++) { var p2 = Voice.parse(alts[i], ctx); if (p2.actions.length) { parsed = p2; used = alts[i]; } }
+      }
+      tr.textContent = '“' + used + '”';
+      chips.replaceChildren(); res.replaceChildren();
+      if (!parsed.actions.length) {
+        UI.haptic('error');
+        stat.textContent = 'Chưa hiểu lệnh này. Thử nói ngắn gọn như các ví dụ bên dưới.';
+        return;
+      }
+      parsed.actions.forEach(function (a) { chips.appendChild(h('span', { class: 'chip on', text: a.label + (a.count > 1 ? ' ×' + a.count : '') })); });
+      stat.textContent = parsed.unknown.length ? 'Bỏ qua phần chưa hiểu: “' + parsed.unknown.join('”, “') + '”' : 'Đang gửi…';
+      busy = true; go.classList.add('na');
+      var out = [];
+      for (var k = 0; k < parsed.actions.length; k++) {
+        var a = parsed.actions[k];
+        var r = a.t === 'tv' ? await runTv(a) : await runAc(a);
+        out.push(r); showResults(out);
+        if (!r.ok) break;
+        await sleep(a.t === 'tv' ? 300 : 120);
+      }
+      busy = false; go.classList.remove('na');
+      if (!vui) return;
+      stat.textContent = out.every(function (r) { return r.ok; }) ? (out.some(function (r) { return r.demo; }) ? 'Xong (Demo).' : '“Đã gửi” = hệ điều hòa đã phát lệnh; không xác nhận thiết bị đã nhận.') : 'Có lệnh không thực hiện được.';
+    }
+    function startMic() {
+      if (!nativeOk) { UI.haptic('error'); UI.toast('warn', stat.textContent); return; }
+      UI.haptic('nav'); stat.textContent = ''; tr.textContent = 'Đang chuẩn bị micro…'; setListening(true);
+      Online.call('startVoice');
+    }
+    UI.pressable(mic, { onPress: function () { if (listening) { Online.call('stopVoice'); setListening(false); tr.textContent = 'Đã dừng.'; } else startMic(); } });
+    function submit() { var t = inp.value.trim(); if (t) { run(t, true); } }
+    go.addEventListener('click', function () { UI.haptic('nav'); submit(); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+
+    vui = {
+      onEvent: function (ev) {
+        if (ev.state === 'listening') { setListening(true); tr.textContent = 'Đang nghe… hãy nói lệnh'; stat.textContent = ''; }
+        else if (ev.state === 'partial') tr.textContent = '“' + ev.text + '”';
+        else if (ev.state === 'processing') { tr.textContent = tr.textContent === 'Đang nghe… hãy nói lệnh' ? 'Đang xử lý…' : tr.textContent; }
+        else if (ev.state === 'final') { setListening(false); run(ev.text || '', false, ev.alts || []); }
+        else if (ev.state === 'error' || ev.ok === false) { setListening(false); UI.haptic('error'); tr.textContent = 'Chưa nhận được lệnh'; stat.textContent = ev.error || 'Lỗi nhận giọng nói.'; }
+      }
+    };
+    UI.openSheet(h('div', { class: 'vsheet' },
+      h('h3', { text: 'Điều khiển bằng giọng nói' }),
+      h('div', { class: 'v-stage' }, mic, tr, stat),
+      chips, res,
+      h('div', { class: 'v-type' }, inp, go),
+      h('p', { class: 'row-sub', text: 'Ra lệnh: âm lượng, kênh, điều hướng, nhiệt độ, chế độ… Hồng ngoại không gõ chữ vào TV được, nên không có “tìm kiếm bằng giọng nói” trên TV.' }),
+      ex), { onClose: function () { if (listening) Online.call('stopVoice'); vui = null; } });
+    if (nativeOk) startMic();
+  }
+  Online.on(function (ev) { if (ev && ev.type === 'voice' && vui) vui.onEvent(ev); });
+
+  function micKey() {
+    var b = h('button', { type: 'button', class: 'key small mic', 'aria-label': 'Điều khiển bằng giọng nói' }, UI.icon('mic'));
+    b.addEventListener('click', function () { UI.haptic('nav'); voiceSheet(); });
+    return b;
   }
 
   /* ---- Điều khiển TV ---- */
@@ -64,7 +229,7 @@
       h('span'), tvKey(dev, 'down', 'down', 'nav'), h('span'));
     var more = h('button', { type: 'button', class: 'key small', 'aria-label': 'Thêm phím', onclick: function () { UI.haptic('nav'); extrasSheet(dev); } }, UI.icon('more'));
     return h('div', { class: 'cpad tv' },
-      h('div', { class: 'toprow' }, tvKey(dev, 'power', 'power', 'power small', 'Nguồn'), h('span', { class: 'grow' }), more),
+      h('div', { class: 'toprow' }, tvKey(dev, 'power', 'power', 'power small', 'Nguồn'), h('span', { class: 'grow' }), micKey(), more),
       dpad,
       h('div', { class: 'navrow' }, tvKey(dev, 'back', 'back', 'wide', 'Quay lại'), tvKey(dev, 'home', 'home', 'wide', 'Trang chủ'), tvKey(dev, 'exit', 'exit', 'wide', 'Thoát')),
       h('div', { class: 'volrow' }, tvKey(dev, 'vol_down', 'minus', 'vol', 'Giảm âm lượng'), tvKey(dev, 'mute', 'mute', 'mid', 'Tắt tiếng'), tvKey(dev, 'vol_up', 'plus', 'vol', 'Tăng âm lượng')));
@@ -191,7 +356,7 @@
     };
     var el = h('div', { class: 'cpad ac' },
       disp,
-      h('div', { class: 'toprow' }, power, h('span', { class: 'grow' }), timerBtn),
+      h('div', { class: 'toprow' }, power, h('span', { class: 'grow' }), micKey(), timerBtn),
       h('div', { class: 'tempctl' }, minus, tslider.el, plus),
       modeRow, fanRow, swRow);
     acPaint();
