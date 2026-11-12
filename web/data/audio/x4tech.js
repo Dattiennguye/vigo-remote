@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: audio), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("audio","X4TECH",[{"brand":"X4TECH","model":"Amply · X4 TECH TU-1200","models":["X4 TECH TU-1200"],"type":"audio","kind":"Amply","core":2,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Audio_and_Video_Receivers/X4TECH/X4_TECH_TU-1200.ir","files":["Audio_and_Video_Receivers/X4TECH/X4_TECH_TU-1200.ir"]},"codes":{"power":{"spec":{"protocol":"nec","address":0,"command":4}},"vol_up":{"spec":{"protocol":"nec","address":0,"command":31}}}}]);

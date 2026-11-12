@@ -97,10 +97,10 @@
     var devs = Store.devices();
     devs.forEach(function (d) {
       var act = Store.active();
-      card.appendChild(row(d.type === 'tv' ? 'tv' : 'ac', d.name, ((d.type === 'tv' ? 'TV' : 'Điều hòa') + ' · ' + d.brand + ' ' + d.model).trim(), function () { devicePage(d.id); },
+      card.appendChild(row(DT.icon(d.type), d.name, (DT.label(d.type) + ' · ' + d.brand + ' ' + d.model).trim(), function () { devicePage(d.id); },
         act && act.id === d.id ? h('span', { class: 'badge', text: 'Đang dùng' }) : null));
     });
-    if (!devs.length) card.appendChild(h('p', { class: 'muted pad-s', text: 'Chưa có thiết bị. Thêm TV hoặc điều hòa để bắt đầu.' }));
+    if (!devs.length) card.appendChild(h('p', { class: 'muted pad-s', text: 'Chưa có thiết bị. Thêm TV, điều hòa, đầu thu, loa, quạt, đèn… để bắt đầu.' }));
     card.appendChild(h('button', { class: 'btn primary block', onclick: function () { UI.haptic('nav'); addDevice(); } }, UI.icon('plus'), h('span', { text: 'Thêm thiết bị' })));
     root.appendChild(card);
 
@@ -125,8 +125,7 @@
     }
     coll.appendChild(h('div', null,
       segRow('Cường độ rung', null, [['light', 'Nhẹ'], ['medium', 'Vừa'], ['strong', 'Mạnh']], 'hapticLevel'),
-      segRow('Kiểu rung', 'Nếu không thấy rung, thử đổi kiểu', [['motor', 'Mô-tơ'], ['system', 'Hệ thống']], 'hapticMode'),
-      row('wave', 'Thử rung', 'Rung thử và báo thông tin mô-tơ rung', function () { var r = Bridge.hapticTest(); UI.toast(r.status === 'sent' ? 'ok' : r.status === 'demo' ? 'warn' : 'err', r.message); })));
+      row('wave', 'Thử rung', 'Rung thử một lần', function () { var r = Bridge.hapticTest(); UI.toast(r.status === 'sent' ? 'ok' : r.status === 'demo' ? 'warn' : 'err', r.message); })));
     fb.appendChild(coll);
     fb.appendChild(UI.toggleRow('Giữ để lặp', 'Giữ nút âm lượng, mũi tên hoặc nhiệt độ để gửi liên tục', Store.setting('repeat'), function (v) { Store.set('repeat', v); }));
     fb.appendChild(UI.toggleRow('Giảm chuyển động', 'Tắt hiệu ứng mở app, chuyển tab và gợn sóng', Store.setting('reduceMotion'), function (v) { Store.set('reduceMotion', v); window.VigoApp.applyPrefs(); }));
@@ -208,20 +207,25 @@
   }
 
   /* ================= Thêm thiết bị ================= */
+  var DT = window.VigoDevTypes;
+  function keyName(k) { return Lib.keyLabel(k) || CORE_LABEL[k] || k; }
+
   function addDevice() {
     UI.openPage('Thêm thiết bị', function (b) {
       b.appendChild(h('p', { class: 'muted', text: 'Bạn muốn điều khiển thiết bị nào?' }));
-      [['tv', 'tv', 'TV', 'Samsung, LG, Sony, TCL, Xiaomi, Panasonic…'], ['ac', 'ac', 'Điều hòa', 'Daikin, Panasonic, LG, Samsung, Midea, Gree, Casper…']].forEach(function (o) {
-        b.appendChild(h('button', { type: 'button', class: 'bigcard', onclick: function () { UI.haptic('nav'); brandPage(o[0]); } },
-          h('span', { class: 'bico' }, UI.icon(o[1])), h('span', { class: 'row-main' }, h('span', { class: 'row-title', text: o[2] }), h('span', { class: 'row-sub', text: o[3] })), UI.icon('chevr', 'dim')));
+      DT.list.forEach(function (t) {
+        b.appendChild(h('button', { type: 'button', class: 'bigcard', onclick: function () { UI.haptic('nav'); brandPage(t.id); } },
+          h('span', { class: 'bico' }, UI.icon(t.icon)), h('span', { class: 'row-main' }, h('span', { class: 'row-title', text: t.label }), h('span', { class: 'row-sub', text: t.hint })), UI.icon('chevr', 'dim')));
       });
     });
   }
 
   function brandPage(type) {
-    UI.openPage(type === 'tv' ? 'Chọn hãng TV' : 'Chọn hãng điều hòa', function (b) {
+    var T = DT.get(type);
+    UI.openPage(type === 'ac' ? 'Chọn hãng điều hòa' : 'Chọn hãng · ' + T.label, function (b) {
       var q = h('input', { type: 'search', class: 'search', placeholder: 'Tìm hãng…', 'aria-label': 'Tìm hãng', autocomplete: 'off' });
       var list = h('div', { class: 'card' });
+      if (T.note) b.appendChild(h('p', { class: 'type-note', text: T.note }));
       b.appendChild(q); b.appendChild(list);
       list.appendChild(h('div', { class: 'loading' }, h('i'), h('span', { text: 'Đang nạp danh sách hãng…' })));
       var brands = [];
@@ -229,34 +233,38 @@
         var t = q.value.trim().toLowerCase();
         list.replaceChildren();
         brands.filter(function (x) { return !t || x.name.toLowerCase().indexOf(t) >= 0; }).forEach(function (x) {
-          list.appendChild(row(null, x.name, x.n + ' bộ mã', function () { type === 'tv' ? tvSetPage(x.name) : acSetPage(x.name); }));
+          list.appendChild(row(null, x.name, x.n + ' bộ mã', function () { type === 'ac' ? acSetPage(x.name) : keyedSetPage(type, x.name); }));
         });
-        if (type === 'tv' && !t) list.appendChild(row(null, 'Hãng khác / tự nhập mã', 'Tạo TV trống rồi gán mã từ tệp .ir, Pronto, raw', function () { customTv(); }));
+        if (type !== 'ac' && !t) list.appendChild(row(null, 'Hãng khác / tự nhập mã', 'Tạo thiết bị trống rồi gán mã từ tệp .ir, Pronto, raw', function () { customDevice(type); }));
         if (!list.children.length) list.appendChild(h('p', { class: 'muted pad-s', text: 'Không thấy hãng “' + q.value + '”.' }));
       }
       q.addEventListener('input', paint);
-      (type === 'tv' ? Lib.tvIndex().then(function (i) { return i.brands; }) : Lib.acIndex().then(function (i) { return i.brands.map(function (x) { return { name: x.name, n: x.sets.length }; }); }))
+      (type === 'ac' ? Lib.acIndex().then(function (i) { return i.brands.map(function (x) { return { name: x.name, n: x.sets.length }; }); }) : Lib.devIndex(type).then(function (i) { return i.brands; }))
         .then(function (bs) { brands = bs; paint(); }, function (e) { list.replaceChildren(h('p', { class: 'muted pad-s', text: e.message })); });
     });
   }
 
-  function customTv() {
-    var input = h('input', { class: 'search', value: 'TV của tôi', 'aria-label': 'Tên thiết bị' });
-    UI.openSheet(h('div', null, h('h3', { text: 'TV tự nhập mã' }), input,
+  function customDevice(type) {
+    var T = DT.get(type);
+    var input = h('input', { class: 'search', value: T.sample, 'aria-label': 'Tên thiết bị' });
+    UI.openSheet(h('div', null, h('h3', { text: T.label + ' tự nhập mã' }), input,
       h('button', { class: 'btn primary block', text: 'Tạo', onclick: function () {
-        var d = Store.add({ name: input.value.trim() || 'TV của tôi', type: 'tv', codes: {}, source: 'Tự nhập' });
+        var d = Store.add({ name: input.value.trim() || T.sample, type: type, codes: {}, source: 'Tự nhập' });
         UI.closeSheet(); while (UI.hasPage()) UI.closePage(); UI.toast('ok', 'Đã tạo. Hãy gán mã cho các phím.'); window.VigoApp.showTab('settings'); devicePage(d.id);
       } })));
   }
 
-  /* Trang chọn bộ mã: thử trực tiếp, dò tuần tự, bỏ qua bộ trùng mã đã thử. */
-  function tvSetPage(brand) {
-    UI.openPage('TV ' + brand, function (b) {
+  /* Trang chọn bộ mã: thử trực tiếp, dò tuần tự, bỏ qua bộ trùng mã đã thử. Dùng chung mọi loại có bảng phím. */
+  function keyedSetPage(type, brand) {
+    var T = DT.get(type);
+    UI.openPage(T.label + ' · ' + brand, function (b) {
       b.appendChild(h('div', { class: 'loading' }, h('i'), h('span', { text: 'Đang nạp mã ' + brand + '…' })));
-      Lib.tvBrand(brand).then(function (entries) {
+      Promise.all([Lib.devIndex(type), Lib.devBrand(type, brand)]).then(function (res) {
+        var idx = res[0], entries = res[1];
+        var core = idx.core || CORE, chipKeys = core.filter(function (k) { return !/^\d$/.test(k); }).slice(0, 14);
+        var testKeys = idx.test || ['power', 'vol_up', 'mute', 'menu', 'ok'];
         b.replaceChildren();
         var i = 0, tried = {};
-        var testKeys = ['power', 'vol_up', 'mute', 'menu', 'ok'];
         function testKey(e) { return testKeys.filter(function (k) { return e.codes[k]; })[0]; }
         function sig(e) { var k = testKey(e); return k ? k + JSON.stringify(e.codes[k].spec) : null; }
         var card = h('div', { class: 'card pad' }), counter = h('div', { class: 'counter' });
@@ -267,10 +275,10 @@
           var e = entries[i], tk = testKey(e);
           counter.textContent = 'Bộ ' + (i + 1) + ' / ' + entries.length;
           title.textContent = e.model;
-          var n = e.core; cover.textContent = 'Đủ ' + pct(n, CORE.length) + ' phím chính · ' + Object.keys(e.codes).length + ' phím tổng';
+          cover.textContent = 'Có ' + e.core + '/' + core.length + ' phím chính · ' + Object.keys(e.codes).length + ' phím tổng';
           keysEl.replaceChildren();
-          CORE.forEach(function (k) { keysEl.appendChild(h('span', { class: 'ck' + (e.codes[k] ? ' has' : ''), text: CORE_LABEL[k] })); });
-          testBtn.replaceChildren(UI.icon('wave'), h('span', { text: tk ? 'Thử phím ' + (CORE_LABEL[tk] || tk) : 'Bộ này không có phím để thử' }));
+          chipKeys.forEach(function (k) { keysEl.appendChild(h('span', { class: 'ck' + (e.codes[k] ? ' has' : ''), text: keyName(k) })); });
+          testBtn.replaceChildren(UI.icon('wave'), h('span', { text: tk ? 'Thử phím ' + keyName(tk) : 'Bộ này không có phím để thử' }));
           testBtn.disabled = !tk; testBtn.classList.toggle('tried', !!(tk && tried[sig(e)]));
           prev.disabled = i === 0; next.disabled = i === entries.length - 1;
         }
@@ -278,7 +286,7 @@
           var e = entries[i], k = testKey(e); if (!k) return;
           tried[sig(e)] = true; var r = Bridge.send(e.codes[k].spec);
           UI.haptic(r.status === 'error' ? 'error' : 'press');
-          UI.toast(r.status === 'sent' ? 'ok' : r.status === 'demo' ? 'warn' : 'err', r.status === 'sent' ? 'Đã gửi. TV có phản hồi không?' : r.message);
+          UI.toast(r.status === 'sent' ? 'ok' : r.status === 'demo' ? 'warn' : 'err', r.status === 'sent' ? 'Đã gửi. Thiết bị có phản hồi không?' : r.message);
           testBtn.classList.add('tried');
         });
         function go(dir) {
@@ -290,19 +298,19 @@
         prev.addEventListener('click', function () { go(-1); }); next.addEventListener('click', function () { go(1); });
         useBtn.addEventListener('click', function () {
           var e = entries[i];
-          askName('TV ' + brand, function (name) {
+          askName(T.label + ' ' + brand, function (name) {
             var codes = {}; Object.keys(e.codes).forEach(function (k) { codes[k] = e.codes[k]; });
-            Store.add({ name: name, type: 'tv', brand: brand, model: e.models[0], codes: codes, source: 'Flipper-IRDB (CC0)' });
+            Store.add({ name: name, type: type, brand: brand, model: e.models[0], codes: codes, source: 'Flipper-IRDB (CC0)' });
             finishAdd();
           });
         });
         var listBtn = h('button', { class: 'btn link', text: 'Xem tất cả bộ mã', onclick: function () {
           var l = h('div', { class: 'devlist' });
-          entries.forEach(function (e, idx) { l.appendChild(h('button', { class: 'devrow' + (idx === i ? ' on' : ''), onclick: function () { i = idx; UI.closeSheet(); paint(); } }, h('span', { class: 'dtxt' }, h('b', { text: e.model }), h('small', { text: pct(e.core, CORE.length) + ' phím chính' })))); });
+          entries.forEach(function (e, idx) { l.appendChild(h('button', { class: 'devrow' + (idx === i ? ' on' : ''), onclick: function () { i = idx; UI.closeSheet(); paint(); } }, h('span', { class: 'dtxt' }, h('b', { text: e.model }), h('small', { text: e.core + '/' + core.length + ' phím chính' })))); });
           UI.openSheet(h('div', null, h('h3', { text: 'Tất cả bộ mã ' + brand }), l));
         } });
         card.appendChild(counter); card.appendChild(title); card.appendChild(cover); card.appendChild(keysEl);
-        b.appendChild(h('p', { class: 'muted', text: 'Hướng mắt phát IR (cạnh trên điện thoại) về TV rồi bấm Thử. TV phản hồi thì chọn “Dùng bộ mã này”, không thì bấm Sau.' }));
+        b.appendChild(h('p', { class: 'muted', text: 'Hướng mắt phát IR (cạnh trên điện thoại) về thiết bị rồi bấm Thử. Thiết bị phản hồi thì chọn “Dùng bộ mã này”, không thì bấm Sau.' }));
         b.appendChild(card); b.appendChild(testBtn); b.appendChild(h('div', { class: 'row-btns' }, prev, next)); b.appendChild(useBtn); b.appendChild(listBtn);
         paint();
       }, function (e) { b.replaceChildren(h('p', { class: 'muted pad', text: e.message })); });
@@ -383,19 +391,19 @@
       function paint() {
         var dev = Store.get(id); if (!dev) { UI.closePage(); return; }
         b.replaceChildren();
-        b.appendChild(h('div', { class: 'card pad' }, h('b', { text: dev.name }), h('p', { class: 'muted', text: (dev.type === 'tv' ? 'TV' : 'Điều hòa') + ' · ' + (dev.brand + ' ' + dev.model).trim() + (dev.source ? ' · ' + dev.source : '') })));
+        b.appendChild(h('div', { class: 'card pad' }, h('b', { text: dev.name }), h('p', { class: 'muted', text: DT.label(dev.type) + ' · ' + (dev.brand + ' ' + dev.model).trim() + (dev.source ? ' · ' + dev.source : '') })));
         var act = h('div', { class: 'card' });
         act.appendChild(row('remote', 'Dùng thiết bị này', 'Mở ở tab Điều khiển', function () { Store.setActive(id); while (UI.hasPage()) UI.closePage(); window.VigoApp.showTab('control'); }));
         act.appendChild(row('edit', 'Đổi tên', null, function () { askName(dev.name, function (n) { Store.update(id, { name: n }); page.querySelector('h2').textContent = n; paint(); }); }));
-        if (dev.type === 'tv') act.appendChild(row('plus', 'Gán mã tùy chỉnh', 'Thêm hoặc thay mã cho từng phím', function () { customCodePage(id, paint); }));
+        if (dev.type !== 'ac') act.appendChild(row('plus', 'Gán mã tùy chỉnh', 'Thêm hoặc thay mã cho từng phím', function () { customCodePage(id, paint); }));
         act.appendChild(row('search', 'Đổi bộ mã khác', 'Chọn lại hãng và thử bộ mã khác', function () { UI.confirmBox('Thêm bộ mã khác?', 'Thiết bị mới sẽ được thêm cùng lúc; thiết bị này không bị xóa.', 'Tiếp tục', function () { addDevice(); }); }));
         act.appendChild(row('trash', 'Xóa thiết bị', null, function () { UI.confirmBox('Xóa “' + dev.name + '”?', 'Không thể hoàn tác.', 'Xóa', function () { Store.remove(id); UI.closePage(); UI.toast('ok', 'Đã xóa'); }, true); }));
         b.appendChild(act);
-        if (dev.type === 'tv') {
+        if (dev.type !== 'ac') {
           b.appendChild(UI.sectionTitle('Bảng phím — bấm để thử'));
           var g = h('div', { class: 'xgrid' }); var keys = Object.keys(dev.codes);
-          CORE.concat(keys.filter(function (k) { return CORE.indexOf(k) < 0; })).forEach(function (k) {
-            var has = !!dev.codes[k]; var lbl = CORE_LABEL[k] || (dev.codes[k] && dev.codes[k].label) || k;
+          (dev.type === 'tv' ? CORE : []).concat(keys.filter(function (k) { return dev.type !== 'tv' || CORE.indexOf(k) < 0; })).forEach(function (k) {
+            var has = !!dev.codes[k]; var lbl = (dev.codes[k] && dev.codes[k].label) || keyName(k);
             var btn = h('button', { type: 'button', class: 'xkey' + (has ? '' : ' na'), 'aria-disabled': has ? null : 'true', 'data-key': k }, h('span', { text: lbl }));
             UI.pressable(btn, { onPress: function (dis) { if (dis) { UI.haptic('error'); return; } var r = Bridge.send(dev.codes[k].spec); UI.haptic(r.status === 'error' ? 'error' : 'press'); UI.toast(r.status === 'sent' ? 'ok' : r.status === 'demo' ? 'warn' : 'err', r.status === 'sent' ? '✓ ' + lbl : r.message); } });
             g.appendChild(btn);
@@ -407,12 +415,20 @@
     });
   }
 
-  /* ================= Mã tùy chỉnh (TV) ================= */
+  /* ================= Mã tùy chỉnh (mọi thiết bị có bảng phím) ================= */
   function customCodePage(id, done) {
     UI.openPage('Gán mã tùy chỉnh', function (b) {
       var dev = Store.get(id);
       var sel = h('select', { class: 'search', 'aria-label': 'Phím cần gán' });
-      CORE.concat(EXTRA_KEYS.map(function (x) { return x[0]; })).forEach(function (k) { sel.appendChild(h('option', { value: k, text: CORE_LABEL[k] || EXTRA_KEYS.filter(function (x) { return x[0] === k; })[0][1] })); });
+      var typeCore = []; /* phím của loại thiết bị này trước, rồi mọi phím chuẩn còn lại */
+      Lib.devIndex(dev.type).then(function (i) { typeCore = i.core || []; fillKeys(); }, function () { fillKeys(); });
+      function fillKeys() {
+        var all = (dev.type === 'tv' ? CORE.concat(EXTRA_KEYS.map(function (x) { return x[0]; })) : typeCore).concat(Lib.labelKeys().sort(function (a, b) { return keyName(a).localeCompare(keyName(b), 'vi'); }));
+        var seen = {}; sel.replaceChildren();
+        all.forEach(function (k) { if (seen[k]) return; seen[k] = 1; sel.appendChild(h('option', { value: k, text: keyName(k) })); });
+        Object.keys(dev.codes).forEach(function (k) { if (!seen[k]) { seen[k] = 1; sel.appendChild(h('option', { value: k, text: (dev.codes[k].label || keyName(k)) })); } });
+      }
+      fillKeys();
       var mode = h('select', { class: 'search', 'aria-label': 'Định dạng' },
         h('option', { value: 'pronto', text: 'Pronto hex (0000…)' }), h('option', { value: 'raw', text: 'Raw (µs)' }), h('option', { value: 'proto', text: 'Giao thức + địa chỉ + lệnh' }));
       var ta = h('textarea', { class: 'code', rows: '4', placeholder: '0000 006D …', spellcheck: 'false', 'aria-label': 'Mã' });
@@ -445,7 +461,7 @@
         try {
           if (!fta.value.trim()) throw new Error('Chưa có nội dung');
           var r = IR.parseFlipperIr(fta.value), cur = Store.get(id), codes = Object.assign({}, cur.codes), n = 0;
-          r.ok.forEach(function (it) { var k = normKey(it.name); codes[k] = { spec: it.spec }; if (CORE.indexOf(k) < 0 && !EXTRA_KEYS.some(function (x) { return x[0] === k; })) codes[k].label = it.name; n++; });
+          r.ok.forEach(function (it) { var k = normKey(it.name); codes[k] = { spec: it.spec }; if (!Lib.keyLabel(k) && CORE.indexOf(k) < 0 && !EXTRA_KEYS.some(function (x) { return x[0] === k; })) codes[k].label = it.name; n++; });
           if (!n) throw new Error('Không nhập được mã nào' + (r.skipped.length ? ': ' + r.skipped.slice(0, 3).join('; ') : ''));
           Store.update(id, { codes: codes }); UI.haptic('press'); UI.toast('ok', 'Đã nhập ' + n + ' mã' + (r.skipped.length ? ', bỏ qua ' + r.skipped.length : '')); done();
         } catch (e) { UI.haptic('error'); UI.toast('err', e.message); }

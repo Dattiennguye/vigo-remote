@@ -36,7 +36,7 @@
 - [ ] Sao lưu → xóa dữ liệu → khôi phục.
 
 ## E2. Bản 2.1
-- [ ] Cài đặt → **Thử rung**: máy rung và toast báo “mô-tơ có”. Không rung → đổi **Kiểu rung** sang Hệ thống rồi thử lại; báo lại kết quả.
+- [ ] Cài đặt → **Thử rung**: máy rung (rung hệ thống). Không rung → kiểm tra Cài đặt máy → Âm thanh & rung → bật “Rung khi chạm” rồi thử lại; báo lại kết quả.
 - [ ] Mở app: hiệu ứng logo ≈2,7 giây mượt (không giật); chuyển tab, bấm nút, bật/tắt công tắc đều mờ dần mượt (máy 120 Hz).
 - [ ] Điều hòa: kéo thanh nhiệt độ — số đổi theo ngón tay, rung từng mức, thả tay mới phát 1 lệnh; thanh quạt cột to nhỏ chọn đúng mức.
 - [ ] Banner quảng cáo thử (“Test Ad”) hiện trên cùng; bố cục điều khiển vẫn vừa màn hình.
@@ -55,3 +55,12 @@
 - [ ] Điều hòa: “bật điều hòa”, “nhiệt độ 24 độ”, “giảm 2 độ”, “quạt mạnh”.
 - [ ] Tắt Internet → báo lỗi mạng rõ ràng; vẫn gõ lệnh được.
 - [ ] Từ chối quyền micro → báo rõ, không treo.
+
+## H. Các loại thiết bị mới (bản 2.3)
+Với mỗi thiết bị bạn có (đầu thu, TV box, đầu DVD, loa/soundbar/amply, quạt, đèn LED, máy chiếu…):
+- [ ] Thêm thiết bị → chọn loại → chọn hãng → bấm **Thử phím** → thiết bị phản ứng thì “Dùng bộ mã này”; không thì **Sau ▶**.
+- [ ] Bảng điều khiển: nguồn, âm lượng/tốc độ/độ sáng, điều hướng… chạy đúng; phím lạ nằm ở “Thêm phím”/lưới phím.
+- [ ] Đầu thu/đầu đĩa: nút **123** mở bàn phím số, đổi kênh được.
+- [ ] Mã RC5/RC6 (nhiều đầu thu, amply Philips/Marantz…): bấm cùng một phím hai lần liên tiếp phải có tác dụng cả hai lần (bit toggle).
+- [ ] Giọng nói: “bật đèn”, “tăng tốc độ quạt”, “tạm dừng”, “tăng âm lượng 3 lần” trên thiết bị đang chọn.
+- [ ] Báo lại model nào không có bộ mã phù hợp để thêm/nhập tay.

@@ -45,13 +45,30 @@
 
   function parseTv(seg) {
     var m;
+    /* thiết bị khác có bảng phím: đèn, quạt, loa, đầu đĩa, máy chiếu */
+    if (/tat (den|quat|loa|may chieu|dau|box|amply)\b/.test(seg)) return { t: 'tv', key: 'off', alt: 'power', count: 1, label: 'Tắt' };
+    if (/(bat|mo) (den|quat|loa|may chieu|dau|box|amply)\b/.test(seg)) return { t: 'tv', key: 'on', alt: 'power', count: 1, label: 'Bật' };
+    if (/sang hon|tang do sang|\bsang len\b/.test(seg)) return { t: 'tv', key: 'bright_up', count: count(seg, 1), label: 'Sáng hơn' };
+    if (/toi hon|giam do sang|\btoi di\b/.test(seg)) return { t: 'tv', key: 'bright_down', count: count(seg, 1), label: 'Tối hơn' };
+    if (/(tang|manh hon|nhanh hon).*(toc do|gio|quat)|toc do (len|tang)/.test(seg)) return { t: 'tv', key: 'speed_up', count: count(seg, 1), label: 'Tốc độ +' };
+    if (/(giam|yeu hon|cham hon).*(toc do|gio|quat)|toc do (xuong|giam)/.test(seg)) return { t: 'tv', key: 'speed_down', count: count(seg, 1), label: 'Tốc độ −' };
+    if (/\b(dao|xoay|lac)\b/.test(seg)) return { t: 'tv', key: 'swing', count: 1, label: 'Đảo chiều' };
+    if (/hen gio/.test(seg)) return { t: 'tv', key: 'timer', count: 1, label: 'Hẹn giờ' };
+    if (/tam dung|\bpause\b/.test(seg)) return { t: 'tv', key: 'pause', alt: 'play_pause', count: 1, label: 'Tạm dừng' };
+    if (/tua (toi|nhanh)/.test(seg)) return { t: 'tv', key: 'fast_forward', count: 1, label: 'Tua tới' };
+    if (/tua lai/.test(seg)) return { t: 'tv', key: 'rewind', count: 1, label: 'Tua lại' };
+    if (/(bai|chuong|ca khuc) (tiep|sau|ke)|\bnext\b/.test(seg)) return { t: 'tv', key: 'next', count: count(seg, 1), label: 'Tiếp theo' };
+    if (/(bai|chuong|ca khuc) truoc|\bprev(ious)?\b/.test(seg)) return { t: 'tv', key: 'prev', count: count(seg, 1), label: 'Trước đó' };
+    if (/(mo|dong) khay|\beject\b/.test(seg)) return { t: 'tv', key: 'eject', count: 1, label: 'Mở/Đóng khay' };
+    if (/^(phat|play|choi)$|^phat (nhac|phim|di)\b/.test(seg)) return { t: 'tv', key: 'play', alt: 'play_pause', count: 1, label: 'Phát' };
+    if (/^(dung|stop)$|\bdung (phat|lai)\b/.test(seg)) return { t: 'tv', key: 'stop', count: 1, label: 'Dừng' };
     if ((m = /kenh (?:so )?(\d{1,4})\b/.exec(seg))) return { t: 'tv', digits: m[1], label: 'Kênh ' + m[1] };
     if (/tat tieng|im lang|cam tieng|bat tieng|\bmute\b/.test(seg)) return { t: 'tv', key: 'mute', count: 1, label: TV_LABEL.mute };
     if (/(tang|to|lon|len).*(am luong|tieng)|am luong (len|tang|lon)|^(to|lon) (len|hon)\b|lon hon|to hon/.test(seg)) return { t: 'tv', key: 'vol_up', count: count(seg, 1), label: TV_LABEL.vol_up };
     if (/(giam|nho|bot|xuong).*(am luong|tieng)|am luong (xuong|giam|nho)|nho (di|hon|xuong)|bot tieng/.test(seg)) return { t: 'tv', key: 'vol_down', count: count(seg, 1), label: TV_LABEL.vol_down };
     if (/kenh (tiep|len|sau|ke|\+)|chuyen kenh len/.test(seg)) return { t: 'tv', key: 'ch_up', count: count(seg, 1), label: TV_LABEL.ch_up };
     if (/kenh (truoc|xuong|lui|-)|chuyen kenh xuong/.test(seg)) return { t: 'tv', key: 'ch_down', count: count(seg, 1), label: TV_LABEL.ch_down };
-    if (/(tat|bat|mo|khoi dong|dong)\s*(tivi|ti vi|tv|may|man hinh|nguon)|^(tat|bat|mo)$|\bnguon\b(?! tin hieu)/.test(seg) && !/tin hieu/.test(seg)) return { t: 'tv', key: 'power', count: 1, label: TV_LABEL.power };
+    if (/(tat|bat|mo|khoi dong|dong)\s*(tivi|ti vi|tv|may|man hinh|nguon)|^(tat|bat|mo)$|\bnguon\b(?! tin hieu)/.test(seg) && !/tin hieu/.test(seg)) return { t: 'tv', key: 'power', alt: /^(bat|mo|khoi dong)/.test(seg) ? 'on' : /^(tat|dong)/.test(seg) ? 'off' : null, count: 1, label: TV_LABEL.power };
     if (/quay lai|tro lai|tro ve|lui lai|\bback\b/.test(seg)) return { t: 'tv', key: 'back', count: 1, label: TV_LABEL.back };
     if (/trang chu|man hinh chinh|\bhome\b/.test(seg)) return { t: 'tv', key: 'home', count: 1, label: TV_LABEL.home };
     if (/\bthoat\b|\bexit\b/.test(seg)) return { t: 'tv', key: 'exit', count: 1, label: TV_LABEL.exit };
@@ -95,9 +112,11 @@
     var segs = s.split(/ (?:roi|sau do|xong|roi sau do|tiep theo|va) /).map(function (x) { return x.trim(); }).filter(Boolean);
     var actions = [], unknown = [];
     segs.forEach(function (seg) {
-      var dom = AC_WORDS.test(seg) && !TV_WORDS.test(seg) ? 'ac' : TV_WORDS.test(seg) ? 'tv' : (ctx.activeType || 'tv');
+      var acStrong = /dieu hoa|may lanh|nhiet do|\bdh\b/.test(seg);
+      var dom = acStrong ? 'ac' : AC_WORDS.test(seg) && !TV_WORDS.test(seg) ? (ctx.activeType === 'tv' && ctx.hasTv ? 'tv' : 'ac') : TV_WORDS.test(seg) ? 'tv' : (ctx.activeType || 'tv');
       var a = dom === 'ac' ? parseAc(seg) : parseTv(seg);
-      if (!a && dom === 'tv' && ctx.hasAc && !ctx.hasTv) a = parseAc(seg);
+      if (!a && dom === 'tv' && ctx.hasAc) a = parseAc(seg);
+      if (!a && dom === 'ac' && ctx.hasTv) a = parseTv(seg);
       if (!a) unknown.push(seg); else actions.push(a);
     });
     return { actions: actions, unknown: unknown, normalized: s };

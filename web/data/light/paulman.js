@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: light), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("light","Paulman",[{"brand":"Paulman","model":"Đèn LED · LED","models":["LED"],"type":"light","kind":"Đèn LED","core":2,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/LED_Lighting/Paulman/Paulman_LED.ir","files":["LED_Lighting/Paulman/Paulman_LED.ir"]},"codes":{"off":{"spec":{"protocol":"necext","address":61184,"command":64515}},"on":{"spec":{"protocol":"necext","address":61184,"command":64515}}}}]);

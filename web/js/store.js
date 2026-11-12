@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var KEY = 'vigo.remote.v2', OLD = 'vigo.remote.v1';
-  var DEFAULTS = { haptics: true, hapticLevel: 'medium', hapticMode: 'motor', reduceMotion: false, repeat: true, keepAwake: false, volumeKeys: false };
+  var DEFAULTS = { haptics: true, hapticLevel: 'medium', reduceMotion: false, repeat: true, keepAwake: false, volumeKeys: false };
   var state, storageError = null, listeners = [];
 
   function fresh() { return { v: 2, devices: [], activeId: null, account: null, pro: { active: false, checkedAt: 0 }, settings: Object.assign({}, DEFAULTS) }; }
@@ -14,8 +14,8 @@
     if (!p || typeof p !== 'object') return s;
     if (Array.isArray(p.devices)) {
       s.devices = p.devices.filter(function (d) {
-        return d && typeof d.id === 'string' && (d.type === 'tv' || d.type === 'ac') && typeof d.name === 'string' &&
-          (d.type === 'tv' ? d.codes && typeof d.codes === 'object' : d.ac && typeof d.ac.setId === 'string');
+        return d && typeof d.id === 'string' && window.VigoDevTypes.has(d.type) && typeof d.name === 'string' &&
+          (d.type !== 'ac' ? d.codes && typeof d.codes === 'object' : d.ac && typeof d.ac.setId === 'string');
       });
     }
     if (p.settings && typeof p.settings === 'object') {
@@ -23,7 +23,6 @@
         if (typeof p.settings[k] === typeof DEFAULTS[k]) s.settings[k] = p.settings[k];
       });
       if (['light', 'medium', 'strong'].indexOf(s.settings.hapticLevel) < 0) s.settings.hapticLevel = 'medium';
-      if (['motor', 'system'].indexOf(s.settings.hapticMode) < 0) s.settings.hapticMode = 'motor';
     }
     if (p.account && typeof p.account.email === 'string') s.account = { email: p.account.email.slice(0, 120), name: String(p.account.name || '').slice(0, 80) };
     if (p.pro && typeof p.pro === 'object') s.pro = { active: !!p.pro.active, checkedAt: Number(p.pro.checkedAt) || 0 };
@@ -60,7 +59,7 @@
     setActive: function (id) { if (Store.get(id)) { state.activeId = id; save(); emit(); } },
     add: function (d) {
       var dev = { id: uid(), name: d.name, type: d.type, brand: d.brand || '', model: d.model || '', createdAt: Date.now() };
-      if (d.type === 'tv') { dev.codes = d.codes || {}; dev.source = d.source || ''; }
+      if (d.type !== 'ac') { dev.codes = d.codes || {}; dev.source = d.source || ''; }
       else { dev.ac = d.ac; dev.state = d.state; }
       state.devices.push(dev); state.activeId = dev.id; save(); emit(); return dev;
     },

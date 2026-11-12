@@ -8,8 +8,8 @@ Giao diện tìm đối tượng `window.VigoNative` (xem `web/js/ir-bridge.js`)
 | `hasIrEmitter()` | `{"ok":true,"available":true}` hoặc `{"ok":false,"error":"..."}` |
 | `getCarrierFrequencies()` | `{"ok":true,"ranges":[[30000,60000]]}` |
 | `transmit(freqHz:int, patternJson:string)` | `{"ok":true}` hoặc `{"ok":false,"error":"..."}` |
-| `haptic(kind, mode)` | không trả về. kind: `tick`/`click`/`heavy`/`error`; mode: `motor` (Vibrator one-shot, mặc định) hoặc `system` (performHapticFeedback, có fallback) |
-| `hapticTest()` | JSON `{hasVibrator, amplitudeControl, sdk}` rồi rung thử |
+| `haptic(kind, mode)` | không trả về. kind: `tick`/`click`/`heavy`/`error`; chỉ dùng `performHapticFeedback` (rung hệ thống), `mode` bị bỏ qua |
+| `hapticTest()` | JSON `{ok, sdk, system}` rồi rung thử bằng rung hệ thống |
 | `setVolumeKeys(enabled:bool)` | `{"ok":true}`. Bật thì phím âm lượng vật lý được chặn và gửi `window.__vigoKey('vol_up'\|'vol_down')` |
 | `keepScreenOn(enabled:bool)` | `{"ok":true}`. Giữ màn hình sáng (FLAG_KEEP_SCREEN_ON) |
 | `vibrate(ms:int)` | không trả về (cũ, còn giữ để tương thích) |

@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: other), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("other","Citysports",[{"brand":"Citysports","model":"Khác · WP2","models":["WP2"],"type":"other","kind":"Khác","core":1,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Miscellaneous/Citysports/Citysports_WP2.ir","files":["Miscellaneous/Citysports/Citysports_WP2.ir"]},"codes":{"power":{"spec":{"protocol":"nec","address":33,"command":1}},"speed_up":{"spec":{"protocol":"nec","address":33,"command":2}},"speed_down":{"spec":{"protocol":"nec","address":33,"command":3}}}}]);

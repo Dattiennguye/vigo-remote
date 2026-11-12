@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: other), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("other","Varytech",[{"brand":"Varytech","model":"Khác · Fog Machine F80B","models":["Fog Machine F80B"],"type":"other","kind":"Khác","core":2,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Miscellaneous/Varytech/Varytech_Fog_Machine_F80B.ir","files":["Miscellaneous/Varytech/Varytech_Fog_Machine_F80B.ir"]},"codes":{"on":{"spec":{"protocol":"nec","address":0,"command":13}},"off":{"spec":{"protocol":"nec","address":0,"command":9}}}}]);

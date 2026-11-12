@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: light), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("light","Lotti LED",[{"brand":"Lotti LED","model":"Đèn LED · Remote XT-RC1","models":["Remote XT-RC1"],"type":"light","kind":"Đèn LED","core":2,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/LED_Lighting/Lotti_LED/Remote_XT-RC1.ir","files":["LED_Lighting/Lotti_LED/Remote_XT-RC1.ir"]},"codes":{"on":{"spec":{"protocol":"nec","address":0,"command":1}},"off":{"spec":{"protocol":"nec","address":0,"command":9}}}}]);

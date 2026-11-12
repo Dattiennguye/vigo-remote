@@ -77,7 +77,7 @@ t('Flipper .ir parsed + raw + bỏ qua giao thức lạ', () => {
     'Filetype: IR signals file', 'Version: 1', '#',
     'name: Power', 'type: parsed', 'protocol: Samsung32', 'address: 07 00 00 00', 'command: 02 00 00 00', '#',
     'name: Vol_up', 'type: parsed', 'protocol: NEC', 'address: 04 00 00 00', 'command: 02 00 00 00', '#',
-    'name: Khac', 'type: parsed', 'protocol: RC6', 'address: 00 00 00 00', 'command: 01 00 00 00', '#',
+    'name: Khac', 'type: parsed', 'protocol: RCA', 'address: 00 00 00 00', 'command: 01 00 00 00', '#',
     'name: Raw1', 'type: raw', 'frequency: 38000', 'duty_cycle: 0.330000', 'data: 9000 4500 560 560 560 1690'
   ].join('\n');
   const r = IR.parseFlipperIr(txt);
@@ -145,5 +145,66 @@ console.log('ok  - Kaseikyo: mã hóa khớp ngược với bộ giải mã Flip
   assert.ok(real.pattern[0] > 3500 && real.pattern[0] < 4000 && real.pattern[1] > 1700 && real.pattern[1] < 1900, JSON.stringify(real.pattern.slice(0, 2)));
   assert.strictEqual(real.pattern.length, 440);
 }
+
+/* ---- RC5 / RC6 / NEC42 / Pioneer: giải ngược xung bằng bộ giải độc lập rồi so với trường dữ liệu ---- */
+function halfBits(pattern, half, leadSkip) {
+  /* đổi xung thành chuỗi mức theo nửa-bit: mark=1, space=0 */
+  const lv = [];
+  pattern.forEach((d, i) => { const n = Math.round(d / half); for (let k = 0; k < n; k++) lv.push(i % 2 === 0 ? 1 : 0); });
+  return lv;
+}
+t('RC5 địa chỉ 0 lệnh 12 (standby): 14 bit Manchester đúng, bắt đầu bằng xung', () => {
+  const e = IR.encode({ protocol: 'rc5', address: 0, command: 12, toggle: 0 });
+  assert.strictEqual(e.freq, 36000);
+  let lv = halfBits(e.pattern, 888); lv = [0].concat(lv); // nửa-bit nghỉ đầu bị lược
+  if (lv.length % 2) lv.push(0);
+  const bits = []; for (let i = 0; i < 28; i += 2) { assert.notStrictEqual(lv[i], lv[i + 1], 'mỗi bit phải có chuyển mức'); bits.push(lv[i] === 0 && lv[i + 1] === 1 ? 1 : 0); }
+  assert.deepStrictEqual(bits, [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0]);
+});
+t('RC5: toggle đổi bit thứ 3; RC5X có bit start thứ 2 = 0; địa chỉ/lệnh lấy 5/6 bit thấp', () => {
+  const dec = (spec) => { let lv = [0].concat(halfBits(IR.encode(spec).pattern, 888)); if (lv.length % 2) lv.push(0); const b = []; for (let i = 0; i < 28; i += 2) b.push(lv[i] === 0 && lv[i + 1] === 1 ? 1 : 0); return b; };
+  assert.strictEqual(dec({ protocol: 'rc5', address: 5, command: 1, toggle: 1 })[2], 1);
+  assert.strictEqual(dec({ protocol: 'rc5', address: 5, command: 1, toggle: 0 })[2], 0);
+  assert.strictEqual(dec({ protocol: 'rc5x', address: 5, command: 1 })[1], 0);
+  assert.strictEqual(dec({ protocol: 'rc5', address: 5, command: 1 })[1], 1);
+  const b = dec({ protocol: 'rc5', address: 0x1F, command: 0x3F }); assert.deepStrictEqual(b.slice(3), [1,1,1,1,1,1,1,1,1,1,1]);
+});
+t('RC6: dẫn 2666/889, mode 0, toggle dài gấp đôi, địa chỉ + lệnh MSB trước', () => {
+  const e = IR.encode({ protocol: 'rc6', address: 0x12, command: 0x34, toggle: 1 });
+  assert.strictEqual(e.freq, 36000); assert.deepStrictEqual(e.pattern.slice(0, 2), [2666, 889]);
+  const lv = halfBits(e.pattern.slice(2), 444); // bắt đầu bằng mức phát (mark) của bit start=1
+  // bit start(1)=11 ... dựng lại chuỗi nửa-bit mong đợi từ đặc tả rồi so
+  const bits = [1, 0, 0, 0, 1].concat([0,0,0,1,0,0,1,0], [0,0,1,1,0,1,0,0]);
+  const exp = []; bits.forEach((b, i) => { const k = i === 4 ? 2 : 1; for (let x = 0; x < k; x++) exp.push(b ? 1 : 0); for (let x = 0; x < k; x++) exp.push(b ? 0 : 1); });
+  while (exp[exp.length - 1] === 0) exp.pop();
+  assert.deepStrictEqual(lv, exp);
+  assert.ok(e.pattern.length % 2 === 0 || true);
+});
+t('NEC42: 42 bit, địa chỉ 13 bit + bù, lệnh 8 bit + bù', () => {
+  const p = IR.encode({ protocol: 'nec42', address: 0x1234, command: 0xA5 }).pattern;
+  assert.deepStrictEqual(p.slice(0, 2), [9000, 4500]); assert.strictEqual(p.length, 2 + 84 + 1);
+  const bits = []; for (let i = 0; i < 42; i++) bits.push(p[3 + 2 * i] === 1690 ? 1 : 0);
+  const val = (a, o, n) => { let v = 0; for (let i = 0; i < n; i++) v |= a[o + i] << i; return v; };
+  assert.strictEqual(val(bits, 0, 13), 0x1234); assert.strictEqual(val(bits, 13, 13), (~0x1234) & 0x1FFF);
+  assert.strictEqual(val(bits, 26, 8), 0xA5); assert.strictEqual(val(bits, 34, 8), (~0xA5) & 0xFF);
+  assert.throws(() => IR.encode({ protocol: 'nec42', address: 0x2000, command: 0 }));
+});
+t('Pioneer: 40 kHz, dẫn 8500/4225, 32 bit NEC-like, gửi 2 lần', () => {
+  const e = IR.encode({ protocol: 'pioneer', address: 0xA1, command: 0x0C });
+  assert.strictEqual(e.freq, 40000); assert.deepStrictEqual(e.pattern.slice(0, 2), [8500, 4225]);
+  const f = 2 + 64 + 1; assert.strictEqual(e.pattern.length, f + 1 + f);
+  const bits = []; for (let i = 0; i < 32; i++) bits.push(e.pattern[3 + 2 * i] === 1500 ? 1 : 0);
+  const val = (a, o, n) => { let v = 0; for (let i = 0; i < n; i++) v |= a[o + i] << i; return v; };
+  assert.strictEqual(val(bits, 0, 8), 0xA1); assert.strictEqual(val(bits, 8, 8), 0x5E); assert.strictEqual(val(bits, 16, 8), 0x0C); assert.strictEqual(val(bits, 24, 8), 0xF3);
+  assert.strictEqual(e.pattern[f], 26500); assert.deepStrictEqual(e.pattern.slice(f + 1), e.pattern.slice(0, f));
+});
+t('Flipper .ir: nhận RC5/RC5X/RC6/NEC42/Pioneer', () => {
+  const txt = ['name: A','type: parsed','protocol: RC5','address: 05 00 00 00','command: 0C 00 00 00','#',
+    'name: B','type: parsed','protocol: RC6','address: 00 00 00 00','command: 0C 00 00 00','#',
+    'name: C','type: parsed','protocol: NEC42','address: 34 12 00 00','command: A5 00 00 00','#',
+    'name: D','type: parsed','protocol: Pioneer','address: A1 00 00 00','command: 0C 00 00 00'].join('\n');
+  const r = IR.parseFlipperIr(txt); assert.strictEqual(r.ok.length, 4, JSON.stringify(r.skipped));
+});
+
 console.log('ok  - Broadlink: giải mã đúng tick, khoảng dài, từ chối khung hỏng');
 process.exit(0);

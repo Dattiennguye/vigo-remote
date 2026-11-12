@@ -337,19 +337,15 @@ async function hitTest(p, selector, scroll) {
     await p.evaluate(() => window.__vigoBack()); /* nút vừa bấm mở trang Thêm thiết bị */
     await p.waitForTimeout(900); assert.strictEqual(await p.locator('.rip').count(), 0, 'gợn sóng tự biến mất');
     ok('gợn sóng mờ dần xuất hiện khi chạm nút và tự dọn');
-    /* kiểu rung */
-    await p.locator('.seg button:has-text("Hệ thống")').click();
-    await p.click('#tabbar [data-tab-btn=settings]');
-    assert.strictEqual(await p.evaluate(() => window.VigoStore.setting('hapticMode')), 'system');
+    /* rung: chỉ còn rung hệ thống, không còn lựa chọn mô-tơ */
+    assert.strictEqual(await p.locator('.seg button:has-text("Mô-tơ")').count(), 0, 'không còn nút Mô-tơ');
+    assert.strictEqual(await p.locator('.row:has-text("Kiểu rung")').count(), 0, 'không còn dòng Kiểu rung');
     await p.evaluate(() => { window.__hap.length = 0; window.__hapM.length = 0; });
     await p.locator('.row:has-text("Thử rung")').click(); await p.waitForTimeout(80);
-    assert.match(await p.locator('#toast').textContent(), /mô-tơ có/);
+    assert.match(await p.locator('#toast').textContent(), /rung hệ thống/);
     await p.evaluate(() => { window.VigoUI.haptic('press'); });
     assert.deepStrictEqual(await p.evaluate(() => window.__hapM.slice(-1)), ['system']);
-    await p.locator('.seg button:has-text("Mô-tơ")').click();
-    await p.evaluate(() => { window.VigoUI.haptic('press'); });
-    assert.deepStrictEqual(await p.evaluate(() => window.__hapM.slice(-1)), ['motor']);
-    ok('kiểu rung Mô-tơ/Hệ thống được truyền xuống native; "Thử rung" báo thông tin mô-tơ');
+    ok('rung chỉ dùng kiểu hệ thống; không còn lựa chọn mô-tơ');
     /* tài khoản & gói */
     await p.locator('.row:has-text("Đăng nhập bằng Google")').click(); await p.waitForTimeout(150);
     assert.match(await p.locator('#view-settings').textContent(), /dat@gmail\.com/);
@@ -497,6 +493,49 @@ async function hitTest(p, selector, scroll) {
   assert.deepStrictEqual(p.errs, [], p.errs.join('\n'));
   ok('giọng nói điều hòa: máy tắt không gửi và báo rõ; bật + nhiệt độ + giảm độ đúng trạng thái');
   await p.ctx.close();
+
+  /* 33. Các loại thiết bị mới: thêm bằng thư viện, bố cục riêng, phím phát đúng mã, không tràn ngang */
+  const TYPE_ROWS = { stb: 2, box: 3, disc: 4, audio: 5, fan: 6, light: 7, proj: 8, air: 9, other: 10 };
+  for (const [type, idx] of Object.entries(TYPE_ROWS)) {
+    for (const vp of [{ width: 393, height: 852 }, { width: 320, height: 568 }]) {
+      p = await open(browser, vp);
+      await p.click('text=Thêm thiết bị'); await p.click('.bigcard >> nth=' + idx);
+      await p.waitForSelector('.page-body .row.tap'); await p.waitForTimeout(150);
+      const brandName = await p.locator('.page-body .row.tap .row-title').first().textContent();
+      await p.locator('.page-body .row.tap').first().click(); await p.waitForSelector('.setname');
+      assert.ok(await p.locator('.setname').textContent(), type + ': có tên bộ mã');
+      /* thử phím phát đúng 1 mã thật (không giả vờ) */
+      await p.evaluate(() => { window.__tx.length = 0; });
+      await p.click('.btn.ghost.big'); await p.waitForTimeout(120);
+      assert.strictEqual(await p.evaluate(() => window.__tx.length), 1, type + ': nút Thử phát 1 mã');
+      await p.click('button:has-text("Dùng bộ mã này")'); await p.click('#sheet-root .sheet button.primary');
+      await p.waitForSelector('#view-control .cpad.gen', { timeout: 8000 }); await p.waitForTimeout(400);
+      const info = await p.evaluate(() => {
+        const keys = [...document.querySelectorAll('#view-control .cpad.gen .key, #view-control .cpad.gen .moreKeys')];
+        const bad = keys.filter((k) => { const r = k.getBoundingClientRect(); return r.right > innerWidth + 1 || r.left < -1; }).length;
+        return { n: keys.length, bad, sw: document.documentElement.scrollWidth, iw: innerWidth, more: !!document.querySelector('.moreKeys') };
+      });
+      assert.ok(info.n >= 3, type + ': có phím trên bảng điều khiển (' + info.n + ')');
+      assert.strictEqual(info.bad, 0, type + ' @' + vp.width + ': phím tràn ngang');
+      assert.ok(info.sw <= info.iw, type + ' @' + vp.width + ': trang tràn ngang');
+      /* bấm 1 phím chính */
+      await p.evaluate(() => { window.__tx.length = 0; });
+      const first = p.locator('#view-control .cpad.gen .key[data-key]:not(.na)').first();
+      await first.scrollIntoViewIfNeeded(); await first.click(); await p.waitForTimeout(120);
+      assert.ok(await p.evaluate(() => window.__tx.length) >= 1, type + ': bấm phím phát IR');
+      if (vp.width === 393 && info.more) {
+        await p.click('.moreKeys'); await p.waitForSelector('.xgrid .xkey');
+        await p.evaluate(() => { window.__tx.length = 0; });
+        await p.locator('.xgrid .xkey').first().click(); await p.waitForTimeout(120);
+        assert.strictEqual(await p.evaluate(() => window.__tx.length), 1, type + ': phím trong "Thêm phím" phát mã');
+        await p.evaluate(() => window.VigoUI.closeSheet()); await p.waitForTimeout(300);
+      }
+      if (process.env.SHOTS && vp.width === 393) await p.screenshot({ path: process.env.SHOTS + '/dev-' + type + '.png' });
+      assert.deepStrictEqual(p.errs, [], type + ': ' + p.errs.join('\n'));
+      await p.ctx.close();
+    }
+  }
+  ok('9 loại thiết bị mới: thêm từ thư viện, thử phím, bảng điều khiển riêng, phím phát mã, "Thêm phím", không tràn ngang ở 393 và 320 px');
 
   await browser.close();
   console.log('\n' + n + ' nhóm kiểm tra giao diện đạt');

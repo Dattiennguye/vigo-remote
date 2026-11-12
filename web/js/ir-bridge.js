@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  var caps = null;
+  var caps = null, toggle = 0;
 
   function native() {
     return typeof window.VigoNative !== 'undefined' && window.VigoNative !== null &&
@@ -53,6 +53,8 @@
     /* Gửi mã IR. Trả về { ok, status: 'sent'|'demo'|'error', message } */
     send: function (spec) {
       var enc;
+      /* RC5/RC6 có bit toggle: đổi sau mỗi lần bấm để thiết bị nhận ra đó là lần bấm mới, không phải giữ phím. */
+      if (spec && (spec.protocol === 'rc5' || spec.protocol === 'rc5x' || spec.protocol === 'rc6')) { toggle ^= 1; spec = Object.assign({}, spec, { toggle: toggle }); }
       try { enc = window.VigoIR.encode(spec); }
       catch (e) { return { ok: false, status: 'error', message: 'Mã IR không hợp lệ: ' + e.message }; }
       return IRBridge.sendRaw(enc.freq, enc.pattern);
@@ -87,7 +89,7 @@
     /* Rung phản hồi. kind: tick | click | heavy | error. Native dùng VibrationEffect; ngoài app dùng navigator.vibrate. */
     haptic: function (kind, mode) {
       try {
-        if (native() && typeof window.VigoNative.haptic === 'function') window.VigoNative.haptic(kind, mode || 'motor');
+        if (native() && typeof window.VigoNative.haptic === 'function') window.VigoNative.haptic(kind, mode || 'system');
         else if (navigator.vibrate) navigator.vibrate(kind === 'error' ? [25, 40, 25] : kind === 'heavy' ? 28 : kind === 'tick' ? 8 : 16);
       } catch (e) { /* rung chỉ là phụ trợ */ }
     },
@@ -101,8 +103,7 @@
       try {
         var r = JSON.parse(window.VigoNative.hapticTest());
         if (!r.ok) return { status: 'error', message: r.error || 'Không rung thử được' };
-        if (!r.hasVibrator) return { status: 'error', message: 'Máy báo KHÔNG có mô-tơ rung (Android ' + r.sdk + ').' };
-        return { status: 'sent', message: 'Đã rung thử: mô-tơ có, Android ' + r.sdk + (r.amplitudeControl ? ', chỉnh được cường độ' : '') + '. Không thấy rung? Thử đổi “Kiểu rung”.' };
+        return { status: 'sent', message: 'Đã rung thử (rung hệ thống, Android ' + r.sdk + '). Không thấy rung? Kiểm tra Cài đặt máy → Âm thanh & rung → bật “Rung khi chạm”.' };
       } catch (e) { return { status: 'error', message: 'Lỗi rung thử: ' + e.message }; }
     },
 

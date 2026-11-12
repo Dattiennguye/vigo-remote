@@ -8,7 +8,8 @@
     ok: 'OK', back: 'Quay lại', home: 'Trang chủ', exit: 'Thoát', menu: 'Menu', source: 'Nguồn tín hiệu', ch_up: 'Kênh +', ch_down: 'Kênh −',
     info: 'Thông tin', src_tv: 'TV', src_hdmi: 'HDMI', src_av: 'AV' };
   var CORE = ['power', 'mute', 'vol_up', 'vol_down', 'up', 'down', 'left', 'right', 'ok', 'back', 'home', 'exit'];
-  function keyLabel(dev, k) { return (dev.codes[k] && dev.codes[k].label) || KEY_LABEL[k] || (/^\d$/.test(k) ? k : k); }
+  function keyLabel(dev, k) { return (dev.codes[k] && dev.codes[k].label) || KEY_LABEL[k] || Lib.keyLabel(k) || k; }
+  var DT = window.VigoDevTypes;
 
   /* ---- Dòng trạng thái ---- */
   function setStatus(kind, text) {
@@ -39,6 +40,11 @@
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function targetDev(type) {
     var a = Store.active();
+    if (type === 'tv') { /* "tv" = thiết bị có bảng phím: ưu tiên thiết bị đang dùng, rồi TV, rồi loại khác */
+      if (a && a.type !== 'ac') return a;
+      var ds = Store.devices().filter(function (d) { return d.type !== 'ac'; });
+      return ds.filter(function (d) { return d.type === 'tv'; })[0] || ds[0] || null;
+    }
     if (a && a.type === type) return a;
     return Store.devices().filter(function (d) { return d.type === type; })[0] || null;
   }
@@ -109,7 +115,7 @@
 
   function contextNow() {
     var a = Store.active();
-    return { activeType: a ? a.type : 'tv', hasTv: !!targetDev('tv'), hasAc: !!targetDev('ac') };
+    return { activeType: a && a.type === 'ac' ? 'ac' : 'tv', hasTv: !!targetDev('tv'), hasAc: !!targetDev('ac') };
   }
 
   var vui = null;
@@ -207,10 +213,11 @@
     return b;
   }
 
-  function extrasSheet(dev) {
-    var keys = Object.keys(dev.codes).filter(function (k) { return CORE.indexOf(k) < 0; });
-    var order = ['menu', 'source', 'ch_up', 'ch_down', 'info', 'src_tv', 'src_hdmi', 'src_av', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    keys.sort(function (a, b) { var i = order.indexOf(a), j = order.indexOf(b); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || a.localeCompare(b); });
+  var ORDER = ['menu', 'source', 'ch_up', 'ch_down', 'info', 'src_tv', 'src_hdmi', 'src_av', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+  function extrasSheet(dev, shown) {
+    shown = shown || CORE;
+    var keys = Object.keys(dev.codes).filter(function (k) { return shown.indexOf(k) < 0; });
+    keys.sort(function (a, b) { var i = ORDER.indexOf(a), j = ORDER.indexOf(b); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || keyLabel(dev, a).localeCompare(keyLabel(dev, b), 'vi'); });
     var grid = h('div', { class: 'xgrid' });
     keys.forEach(function (k) {
       var b = h('button', { type: 'button', class: 'xkey', 'data-key': k }, h('span', { text: keyLabel(dev, k) }));
@@ -220,6 +227,18 @@
     UI.openSheet(h('div', null, h('h3', { text: 'Thêm phím' }),
       keys.length ? grid : h('p', { class: 'muted', text: 'Bộ mã này chỉ có các phím chính.' }),
       h('p', { class: 'row-sub', text: 'Có thể gán thêm phím riêng trong Cài đặt → Thiết bị.' })));
+  }
+
+  function numpadSheet(dev) {
+    var grid = h('div', { class: 'npad' });
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', null, '0', null].forEach(function (k) {
+      if (!k) { grid.appendChild(h('span')); return; }
+      var has = !!(dev.codes[k] && dev.codes[k].spec);
+      var b = h('button', { type: 'button', class: 'xkey nk' + (has ? '' : ' na'), 'aria-disabled': has ? null : 'true', 'data-key': k }, h('span', { text: k }));
+      UI.pressable(b, { onPress: function (dis) { if (dis) { UI.haptic('error'); return; } pressTv(dev, k); } });
+      grid.appendChild(b);
+    });
+    UI.openSheet(h('div', null, h('h3', { text: 'Bàn phím số' }), grid));
   }
 
   function buildTv(dev) {
@@ -233,6 +252,82 @@
       dpad,
       h('div', { class: 'navrow' }, tvKey(dev, 'back', 'back', 'wide', 'Quay lại'), tvKey(dev, 'home', 'home', 'wide', 'Trang chủ'), tvKey(dev, 'exit', 'exit', 'wide', 'Thoát')),
       h('div', { class: 'volrow' }, tvKey(dev, 'vol_down', 'minus', 'vol', 'Giảm âm lượng'), tvKey(dev, 'mute', 'mute', 'mid', 'Tắt tiếng'), tvKey(dev, 'vol_up', 'plus', 'vol', 'Tăng âm lượng')));
+  }
+
+  /* ---- Điều khiển các thiết bị có bảng phím khác (đầu thu, TV box, đầu đĩa, loa, quạt, đèn, máy chiếu, ...) ----
+   * Chỉ hiện phím mà bộ mã thật sự có; phím còn lại nằm trong "Thêm phím". Không tạo phím giả. */
+  var KEY_ICON = { power: 'power', mute: 'mute', vol_up: 'plus', vol_down: 'minus', up: 'up', down: 'down', left: 'left', right: 'right', play: 'play', pause: 'pause', stop: 'stop',
+    next: 'next', prev: 'prev', rewind: 'rew', fast_forward: 'ff', eject: 'eject', play_pause: 'playpause', swing: 'swing', timer: 'timer', auto: 'auto', bright_up: 'sun', bright_down: 'moon',
+    speed: 'fan', speed_up: 'plus', speed_down: 'minus', temp_up: 'plus', temp_down: 'minus', light: 'bulb', ch_up: 'up', ch_down: 'down', zoom_in: 'plus', zoom_out: 'minus' };
+  var LABELED = ['speed', 'speed_up', 'speed_down', 'temp_up', 'temp_down', 'swing', 'timer', 'auto', 'bright_up', 'bright_down', 'light', 'zoom_in', 'zoom_out', 'ch_up', 'ch_down', 'bass_up', 'bass_down', 'treble_up', 'treble_down'];
+  var SWATCH = { red: '#ff4d5e', green: '#2ee66a', blue: '#4f7bff', white: '#f3f6ff', warm: '#ffb561', yellow: '#ffd84a', orange: '#ff9a3d', pink: '#ff6fb5', purple: '#a46bff', cyan: '#38e5ff' };
+  var REPEAT = ['vol_up', 'vol_down', 'ch_up', 'ch_down', 'bright_up', 'bright_down', 'speed_up', 'speed_down', 'temp_up', 'temp_down', 'bass_up', 'bass_down', 'treble_up', 'treble_down', 'up', 'down', 'left', 'right'];
+  var LAYOUT = {
+    stb: { top: ['power'], nav: true, pad: true, rows: [['back', 'menu', 'exit'], ['guide', 'info', 'fav', 'list'], ['ch_down', 'ch_up'], ['vol_down', 'mute', 'vol_up']] },
+    box: { top: ['power'], nav: true, rows: [['back', 'home', 'menu'], ['rewind', 'play_pause', 'fast_forward'], ['vol_down', 'mute', 'vol_up']] },
+    disc: { top: ['power', 'eject'], nav: true, pad: true, rows: [['menu', 'top_menu', 'back'], ['prev', 'rewind', 'fast_forward', 'next'], ['play', 'pause', 'stop'], ['subtitle', 'audio', 'repeat', 'display']] },
+    audio: { top: ['power'], rows: [['vol_down', 'mute', 'vol_up'], ['source', 'bluetooth', 'aux', 'optical'], ['prev', 'play_pause', 'next'], ['bass_down', 'bass_up', 'treble_down', 'treble_up'], ['eq', 'surround', 'sound_mode', 'night']] },
+    fan: { top: ['power', 'on', 'off'], all: true, rows: [['speed_down', 'speed', 'speed_up'], ['swing', 'timer', 'mode'], ['night', 'auto', 'breeze', 'light', 'ion']] },
+    air: { top: ['power', 'on', 'off'], all: true, rows: [['temp_down', 'temp', 'temp_up'], ['speed_down', 'speed', 'speed_up'], ['mode', 'timer', 'swing', 'auto', 'night', 'light', 'ion']] },
+    light: { top: ['power', 'on', 'off'], all: true, rows: [['bright_down', 'bright_up'], ['red', 'green', 'blue', 'white'], ['warm', 'yellow', 'orange', 'pink', 'purple', 'cyan'], ['flash', 'strobe', 'fade', 'smooth', 'auto', 'mode'], ['speed_down', 'speed_up']] },
+    proj: { top: ['power', 'on', 'off'], nav: true, rows: [['menu', 'back', 'source'], ['vol_down', 'mute', 'vol_up'], ['freeze', 'blank', 'aspect', 'auto'], ['keystone_up', 'keystone_down', 'zoom_in', 'zoom_out'], ['focus', 'pip', 'picture']] },
+    other: { top: ['power', 'on', 'off'], all: true }
+  };
+
+  function gKey(dev, k, shown) {
+    shown.push(k);
+    var ic = KEY_ICON[k], sw = SWATCH[k], label = keyLabel(dev, k);
+    var wordy = LABELED.indexOf(k) >= 0; /* biểu tượng dễ nhầm (+/−, đảo, hẹn giờ...) thì kèm chữ */
+    var b = h('button', { type: 'button', class: 'key gk' + (ic && !wordy ? ' ik' : '') + (wordy && ic ? ' lk' : '') + (sw ? ' sw' : ''), 'aria-label': label, 'data-key': k },
+      ic && !sw ? UI.icon(ic) : null, ic && !sw && !wordy ? null : h('span', { text: label }));
+    if (sw) b.style.setProperty('--sw', sw);
+    UI.pressable(b, { repeat: REPEAT.indexOf(k) >= 0, interval: /^(vol|bass|treble)/.test(k) ? 130 : 180, onPress: function () { pressTv(dev, k); } });
+    return b;
+  }
+
+  function buildKeyed(dev) {
+    var L = LAYOUT[dev.type] || LAYOUT.other, shown = [], has = function (k) { return !!(dev.codes[k] && dev.codes[k].spec); };
+    var top = h('div', { class: 'toprow' });
+    var tops = L.top.filter(has);
+    if (tops.indexOf('power') >= 0) tops = ['power'].concat(tops.filter(function (k) { return k !== 'power'; })); /* có nút nguồn thì ẩn Bật/Tắt: dồn vào Thêm phím */
+    if (tops.indexOf('power') >= 0) tops = tops.filter(function (k) { return k === 'power' || k === 'eject'; });
+    tops.forEach(function (k) {
+      if (k === 'power') { shown.push(k); var p = tvKey(dev, 'power', 'power', 'power small', 'Nguồn'); top.appendChild(p); }
+      else { var g = gKey(dev, k, shown); g.classList.add('small-pill'); top.appendChild(g); }
+    });
+    if (!tops.length) top.appendChild(h('span', { class: 'muted', text: 'Bộ mã này không có nút nguồn' }));
+    top.appendChild(h('span', { class: 'grow' }));
+    var digits = '0123456789'.split('').filter(has).length;
+    if (L.pad && digits >= 6) { var np = h('button', { type: 'button', class: 'key small', 'aria-label': 'Bàn phím số', onclick: function () { UI.haptic('nav'); numpadSheet(dev); } }, h('span', { text: '123' })); top.appendChild(np); '0123456789'.split('').forEach(function (d) { shown.push(d); }); }
+    top.appendChild(micKey());
+    var blocks = [top];
+    if (L.nav && ['up', 'down', 'left', 'right', 'ok'].some(has)) {
+      ['up', 'down', 'left', 'right', 'ok'].forEach(function (k) { shown.push(k); });
+      blocks.push(h('div', { class: 'dpad', role: 'group', 'aria-label': 'Phím điều hướng' },
+        h('span'), tvKey(dev, 'up', 'up', 'nav'), h('span'),
+        tvKey(dev, 'left', 'left', 'nav'), tvKey(dev, 'ok', null, 'okk', 'OK'), tvKey(dev, 'right', 'right', 'nav'),
+        h('span'), tvKey(dev, 'down', 'down', 'nav'), h('span')));
+    }
+    (L.rows || []).forEach(function (r) {
+      var ks = r.filter(function (k) { return has(k) && shown.indexOf(k) < 0; });
+      if (!ks.length) return;
+      var row = h('div', { class: 'krow', 'data-n': String(Math.min(ks.length, 4)) });
+      ks.forEach(function (k) { row.appendChild(gKey(dev, k, shown)); });
+      blocks.push(row);
+    });
+    var rest = Object.keys(dev.codes).filter(function (k) { return shown.indexOf(k) < 0; });
+    var mainCount = shown.filter(function (k) { return k !== 'power' && k !== 'eject' && !/^\d$/.test(k); }).length;
+    if (L.all || mainCount < 8) { /* bố cục không đoán được / ít phím nhận diện: cho thấy toàn bộ phím còn lại ngay trên màn hình */
+      var grid = h('div', { class: 'krow', 'data-n': '3' });
+      rest.sort(function (a, b) { return keyLabel(dev, a).localeCompare(keyLabel(dev, b), 'vi'); }).forEach(function (k) { grid.appendChild(gKey(dev, k, shown)); });
+      if (grid.children.length) blocks.push(grid);
+      rest = [];
+    }
+    if (rest.length) {
+      var more = h('button', { type: 'button', class: 'btn ghost block moreKeys', onclick: function () { UI.haptic('nav'); extrasSheet(dev, shown); } }, UI.icon('more'), h('span', { text: 'Thêm phím (' + rest.length + ')' }));
+      blocks.push(more);
+    }
+    return h.apply(null, ['div', { class: 'cpad gen' }].concat(blocks));
   }
 
   /* ---- Điều khiển điều hòa ---- */
@@ -383,7 +478,7 @@
     var act = Store.active();
     Store.devices().forEach(function (d) {
       list.appendChild(h('button', { type: 'button', class: 'devrow' + (act && act.id === d.id ? ' on' : ''), onclick: function () { UI.haptic('nav'); UI.closeSheet(); Store.setActive(d.id); } },
-        h('span', { class: 'dico' }, UI.icon(d.type === 'tv' ? 'tv' : 'ac')),
+        h('span', { class: 'dico' }, UI.icon(DT.icon(d.type))),
         h('span', { class: 'dtxt' }, h('b', { text: d.name }), h('small', { text: (d.brand + ' ' + d.model).trim() })),
         act && act.id === d.id ? UI.icon('check', 'ok') : null));
     });
@@ -395,7 +490,7 @@
     return h('div', { class: 'empty' },
       h('div', { class: 'hero-ico' }, UI.icon('wave')),
       h('h2', { text: 'Chưa có thiết bị nào' }),
-      h('p', { class: 'muted', text: 'Chọn hãng TV hoặc điều hòa của bạn để dùng ngay. Mọi thứ chạy ngoại tuyến, không cần đăng nhập.' }),
+      h('p', { class: 'muted', text: 'Chọn thiết bị của bạn (TV, điều hòa, đầu thu, loa, quạt, đèn, máy chiếu…) để dùng ngay. Mọi thứ chạy ngoại tuyến, không cần đăng nhập.' }),
       h('button', { class: 'btn primary big', onclick: function () { UI.haptic('nav'); window.VigoApp.addDevice(); } }, UI.icon('plus'), h('span', { text: 'Thêm thiết bị' })));
   }
 
@@ -407,12 +502,13 @@
     statusEl = h('div', { class: 'status', role: 'status', 'aria-live': 'polite' });
     if (!dev) { root.appendChild(h('div', { class: 'topbar' }, h('span', { class: 'grow' }), irChip())); root.appendChild(empty()); sync(); return; }
     var pill = h('button', { type: 'button', class: 'pill', 'aria-label': 'Đổi thiết bị: ' + dev.name, onclick: function () { UI.haptic('nav'); switcher(); } },
-      UI.icon(dev.type === 'tv' ? 'tv' : 'ac'), h('span', { class: 'pname' }, h('b', { text: dev.name }), h('small', { text: (dev.brand + ' ' + dev.model).trim() })), UI.icon('chev'));
+      UI.icon(DT.icon(dev.type)), h('span', { class: 'pname' }, h('b', { text: dev.name }), h('small', { text: (dev.brand + ' ' + dev.model).trim() })), UI.icon('chev'));
     root.appendChild(h('div', { class: 'topbar' }, pill, h('span', { class: 'grow' }), irChip()));
     root.appendChild(statusEl);
     var stage = h('div', { class: 'stage' });
     root.appendChild(stage);
     if (dev.type === 'tv') root.appendChild(buildTv(dev));
+    else if (dev.type !== 'ac') root.appendChild(buildKeyed(dev));
     else {
       var set = getSet(dev);
       if (set) root.appendChild(buildAc(dev, set));
@@ -435,7 +531,7 @@
   function sync() {
     var dev = Store.active();
     var on = tabActive && !UI.hasPage();
-    Bridge.setVolumeKeys(on && Store.setting('volumeKeys') && !!dev && dev.type === 'tv');
+    Bridge.setVolumeKeys(on && Store.setting('volumeKeys') && !!dev && dev.type !== 'ac' && !!(dev.codes.vol_up || dev.codes.vol_down));
     Bridge.keepScreenOn(on && Store.setting('keepAwake'));
   }
 
@@ -457,7 +553,7 @@
 
   window.__vigoKey = function (key) {
     var dev = Store.active();
-    if (!tabActive || !dev || dev.type !== 'tv' || UI.hasSheet() || UI.hasPage()) return false;
+    if (!tabActive || !dev || dev.type === 'ac' || UI.hasSheet() || UI.hasPage()) return false;
     pressTv(dev, key); return true;
   };
 

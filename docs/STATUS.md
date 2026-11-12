@@ -32,3 +32,10 @@ Mở `web/index.html` ngoài app: mọi nút báo “Demo — chưa phát IR th�
 - Câu không hiểu thì báo lại, không đoán. Điều hòa đang tắt thì lệnh nhiệt độ/chế độ chỉ lưu, không gửi, và báo rõ.
 - Có thể gõ lệnh thay cho nói (cũng dùng được ở Demo).
 - Chưa làm: gõ chữ lên bàn phím ảo của TV bằng phím điều hướng (cần biết bố cục bàn phím từng TV).
+
+## Thêm 9 loại thiết bị (bản 2.3)
+- Đầu thu truyền hình, TV box, đầu DVD/Blu-ray, loa/soundbar/amply, quạt, sưởi/lọc khí/tạo ẩm, đèn LED, máy chiếu, thiết bị khác: ~1.300 bộ mã từ Flipper-IRDB (CC0), bảng điều khiển riêng cho từng loại (chỉ hiện phím bộ mã thật sự có), tự nhập mã cho mọi loại.
+- Thêm giao thức RC5/RC5X, RC6, NEC42, Pioneer: có kiểm thử giải ngược xung bằng bộ giải độc lập, **chưa đo bằng thiết bị thu thật**.
+- Giọng nói hiểu thêm lệnh cho đèn/quạt/loa/đầu đĩa/máy chiếu (bật/tắt, sáng/tối, tốc độ, phát/dừng, tua, mở khay) trên thiết bị đang dùng.
+- Rung: chỉ còn rung hệ thống (bỏ lựa chọn Mô-tơ).
+- Hạn chế: nhiều quạt/đèn/đầu thu dùng mã học từ remote nên tên nút lạ; thiết bị dùng Bluetooth/Wi-Fi/RF không điều khiển được bằng hồng ngoại; mã chưa kiểm chứng trên từng model — luôn dùng nút Thử.

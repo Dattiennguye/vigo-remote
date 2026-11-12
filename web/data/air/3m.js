@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: air), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("air","3M",[{"brand":"3M","model":"Lọc khí · Air Purifier","models":["Air Purifier"],"type":"air","kind":"Lọc khí","core":2,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Air_Purifiers/3M/3M_Air_Purifier.ir","files":["Air_Purifiers/3M/3M_Air_Purifier.ir"]},"codes":{"power":{"spec":{"protocol":"nec","address":0,"command":3}},"speed":{"spec":{"protocol":"nec","address":0,"command":92}},"mute":{"spec":{"protocol":"nec","address":0,"command":83}}}}]);

@@ -16,8 +16,8 @@ import org.json.JSONObject;
  *   hasIrEmitter()            -> {"ok":true,"available":true|false} | {"ok":false,"error":"..."}
  *   getCarrierFrequencies()   -> {"ok":true,"ranges":[[min,max],...]} | {"ok":false,"error":"..."}
  *   transmit(freqHz, json)    -> {"ok":true} | {"ok":false,"error":"..."}
- *   haptic(kind, mode)        -> (không trả về) rung: kind tick|click|heavy|error; mode motor|system
- *   hapticTest()              -> JSON chẩn đoán mô-tơ rung + rung thử
+ *   haptic(kind, mode)        -> (không trả về) rung hệ thống: kind tick|click|heavy|error; mode bị bỏ qua
+ *   hapticTest()              -> JSON chẩn đoán + rung thử (rung hệ thống)
  *   setVolumeKeys(bool)       -> {"ok":true}  dùng phím âm lượng vật lý để gửi vol_up/vol_down
  *   keepScreenOn(bool)        -> {"ok":true}  giữ màn hình sáng
  *
@@ -131,47 +131,23 @@ public class IrBridge {
     }
 
     /**
-     * Rung phản hồi. kind: tick | click | heavy | error. mode: "motor" (mô-tơ rung trực tiếp, mặc định)
-     * hoặc "system" (rung cảm ứng của hệ thống, cùng loại với rung bàn phím).
+     * Rung phản hồi. kind: tick | click | heavy | error. Chỉ dùng rung cảm ứng của hệ thống (giống rung bàn phím);
+     * tham số mode giữ lại cho tương thích, bị bỏ qua.
      */
     @JavascriptInterface
     public void haptic(String kind, String mode) {
-        final String k = kind == null ? "click" : kind;
-        if ("system".equals(mode) && host != null) {
-            host.systemHaptic(k, () -> motor(k));
-        } else {
-            motor(k);
-        }
+        if (host != null) host.systemHaptic(kind == null ? "click" : kind, null);
     }
 
-    @SuppressWarnings("deprecation")
-    private void motor(String k) {
-        try {
-            Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-            if (v == null || !v.hasVibrator()) return;
-            if ("error".equals(k)) {
-                v.vibrate(VibrationEffect.createWaveform(new long[]{0, 30, 55, 30}, -1));
-            } else {
-                long ms = "tick".equals(k) ? 10 : "heavy".equals(k) ? 38 : 22;
-                v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE));
-            }
-        } catch (Exception ignored) {
-            // rung chỉ là phụ trợ
-        }
-    }
-
-    /** Chẩn đoán rung: trả về thông tin mô-tơ rồi rung thử (mô-tơ trực tiếp, sau đó rung hệ thống). */
+    /** Chẩn đoán rung: rung thử bằng rung hệ thống rồi báo thông tin thiết bị. */
     @JavascriptInterface
     @SuppressWarnings("deprecation")
     public String hapticTest() {
         try {
-            Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
             JSONObject o = new JSONObject();
             o.put("ok", true);
             o.put("sdk", android.os.Build.VERSION.SDK_INT);
-            o.put("hasVibrator", v != null && v.hasVibrator());
-            o.put("amplitudeControl", v != null && android.os.Build.VERSION.SDK_INT >= 26 && v.hasAmplitudeControl());
-            motor("heavy");
+            o.put("system", host != null);
             if (host != null) host.systemHaptic("heavy", null);
             return o.toString();
         } catch (Exception e) {

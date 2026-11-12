@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: air), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("air","Orbegozo",[{"brand":"Orbegozo","model":"Máy sưởi · RRE 1310 A","models":["RRE 1310 A"],"type":"air","kind":"Máy sưởi","core":1,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Heaters/Orbegozo/Orbegozo_RRE_1310_A.ir","files":["Heaters/Orbegozo/Orbegozo_RRE_1310_A.ir"]},"codes":{"power":{"spec":{"protocol":"nec","address":0,"command":140}},"menu":{"spec":{"protocol":"nec","address":0,"command":144}}}}]);

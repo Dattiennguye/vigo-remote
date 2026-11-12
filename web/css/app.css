@@ -253,3 +253,22 @@ label.fl{font-size:13px;font-weight:600;color:var(--muted);display:block;margin-
 .v-type{display:flex;gap:8px;margin:10px 0}
 .v-in{flex:1;min-width:0;min-height:48px;padding:0 14px;border-radius:14px;background:var(--s2);border:1px solid var(--line);color:inherit;font:inherit;font-size:16px}
 .v-type .btn.na{opacity:.4;pointer-events:none}
+
+/* ---- Thiết bị có bảng phím (đầu thu, TV box, đầu đĩa, loa, quạt, đèn, máy chiếu, khác) ---- */
+.cpad.gen{gap:10px}
+.krow{display:grid;gap:10px;grid-template-columns:repeat(var(--kn,3),1fr)}
+.krow[data-n="1"]{--kn:1} .krow[data-n="2"]{--kn:2} .krow[data-n="3"]{--kn:3} .krow[data-n="4"]{--kn:4}
+.key.gk{height:52px;border-radius:16px;padding:0 6px;font-size:13.5px;text-align:center;line-height:1.15;overflow:hidden}
+.key.gk .ico{width:26px;height:26px} .key.gk span{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.key.gk.small-pill{height:56px;padding:0 18px;border-radius:28px;min-width:64px}
+.key.gk.sw{background:var(--sw);color:#0B0D12;border-color:transparent;font-weight:800;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.key.gk.sw.pressed{background:var(--sw);filter:brightness(1.15);box-shadow:0 0 22px var(--sw)}
+.moreKeys{display:flex;gap:8px;align-items:center;justify-content:center}
+.toprow .key.small span{font-size:15px;font-weight:800}
+.npad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+.xkey.nk{min-height:60px;font-size:22px}
+.bigcard .row-sub{white-space:normal}
+.type-note{font-size:13px;color:var(--muted);margin:2px 2px 12px}
+@media (max-height:640px){.key.gk{height:46px}.key.gk.small-pill{height:52px}}
+.page-body>*{flex-shrink:0}
+.key.gk.lk{flex-direction:column;gap:2px;font-size:12px;height:58px} .key.gk.lk .ico{width:22px;height:22px}

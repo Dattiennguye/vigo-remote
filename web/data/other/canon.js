@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: other), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("other","Canon",[{"brand":"Canon","model":"Máy ảnh · Camera JJC RM-E6A","models":["Camera JJC RM-E6A"],"type":"other","kind":"Máy ảnh","core":0,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Cameras/Canon/Canon_Camera_JJC RM-E6A.ir","files":["Cameras/Canon/Canon_Camera_JJC RM-E6A.ir"]},"codes":{"blank":{"spec":{"protocol":"raw","freq":38000,"pattern":[594,7182,593]}},"2sec_shutter":{"spec":{"protocol":"raw","freq":38000,"pattern":[566,5044,561]},"label":"2sec shutter"}}}]);

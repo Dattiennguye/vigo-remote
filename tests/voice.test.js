@@ -46,4 +46,22 @@ assert.strictEqual(V.parse('', {}).actions.length, 0);
 /* "nhỏ" / "tư" / "năm" không biến thành số lung tung */
 assert.strictEqual(V.numberWords('nam nay'), 'nam nay');
 ok('chọn đúng thiết bị theo từ khóa; câu không hiểu được báo lại, không đoán');
+
+/* thiết bị có bảng phím khác: đèn, quạt, đầu đĩa, loa */
+const kd = { activeType: 'tv', hasTv: true, hasAc: true };
+assert.deepStrictEqual(one('bật đèn', kd).map((a) => [a.key, a.alt]), [['on', 'power']]);
+assert.deepStrictEqual(one('tắt đèn', kd).map((a) => [a.key, a.alt]), [['off', 'power']]);
+assert.deepStrictEqual(one('sáng hơn 3 lần', kd).map((a) => [a.key, a.count]), [['bright_up', 3]]);
+assert.deepStrictEqual(one('tối hơn', kd).map((a) => a.key), ['bright_down']);
+assert.deepStrictEqual(one('tăng tốc độ quạt', kd).map((a) => a.key), ['speed_up']);
+assert.deepStrictEqual(one('giảm tốc độ', kd).map((a) => a.key), ['speed_down']);
+assert.deepStrictEqual(one('tạm dừng', kd).map((a) => a.key), ['pause']);
+assert.deepStrictEqual(one('bài tiếp theo', kd).map((a) => a.key), ['next']);
+assert.deepStrictEqual(one('mở khay', kd).map((a) => a.key), ['eject']);
+assert.deepStrictEqual(one('tua tới', kd).map((a) => a.key), ['fast_forward']);
+assert.deepStrictEqual(one('tắt loa', kd).map((a) => a.key), ['off']);
+assert.deepStrictEqual(one('bật máy chiếu', kd).map((a) => a.key), ['on']);
+assert.strictEqual(V.parse('nhiệt độ 24 độ', kd).actions[0].t, 'ac');
+ok('lệnh cho đèn/quạt/đầu đĩa/loa/máy chiếu (bật/tắt, độ sáng, tốc độ, phát/dừng, tua, mở khay)');
+
 console.log('\n' + n + ' nhóm kiểm tra giọng nói đạt');

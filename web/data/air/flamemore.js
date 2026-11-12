@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: air), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("air","FlameMore",[{"brand":"FlameMore","model":"Máy sưởi · Heater","models":["Heater"],"type":"air","kind":"Máy sưởi","core":1,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Heaters/FlameMore/FlameMore_Heater.ir","files":["Heaters/FlameMore/FlameMore_Heater.ir"]},"codes":{"power":{"spec":{"protocol":"nec","address":0,"command":13}},"1":{"spec":{"protocol":"nec","address":0,"command":64}},"2":{"spec":{"protocol":"nec","address":0,"command":67}}}}]);

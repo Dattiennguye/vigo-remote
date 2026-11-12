@@ -38,3 +38,6 @@ docs/                STATUS, NATIVE-BRIDGE, BUILD-APK, XIAOMI14-TEST, IR-LIBRARY
 
 ## Giọng nói
 Nút micro ở màn hình Điều khiển: ra lệnh tiếng Việt (âm lượng, kênh, điều hướng, nhiệt độ, chế độ, quạt) hoặc gõ lệnh. Hồng ngoại không gõ chữ vào TV được nên không có tìm kiếm bằng giọng nói trên TV. Xem docs/STATUS.md.
+
+## Thiết bị hỗ trợ
+TV, điều hòa, đầu thu truyền hình, TV box, đầu DVD/Blu-ray, loa/soundbar/amply, quạt, sưởi/lọc khí/tạo ẩm, đèn LED, máy chiếu và thiết bị khác (hoặc tự nhập mã). Xem docs/IR-LIBRARY.md.

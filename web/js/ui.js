@@ -35,6 +35,12 @@
     exit: 'M6 6l12 12M18 6L6 18',
     plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
     more: 'M5 12h.01M12 12h.01M19 12h.01',
+    play: 'M7 4l13 8-13 8z', pause: 'M8 5v14M16 5v14', stop: 'M6 6h12v12H6z', next: 'M6 5l9 7-9 7zM18 5v14', prev: 'M18 5l-9 7 9 7zM6 5v14',
+    rew: 'M12 6l-8 6 8 6zM20 6l-8 6 8 6z', ff: 'M4 6l8 6-8 6zM12 6l8 6-8 6z', eject: 'M5 15l7-9 7 9zM5 19h14', playpause: 'M4 5l9 7-9 7zM17 5v14M21 5v14',
+    stb: 'M3 9h18v7H3zM7 12.500h.01M16 12.500h3M7 19v-3M17 19v-3', box: 'M4 8h16v9H4zM8 12.500h6M17 12.500h.01M7 21h10',
+    disc: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', speaker: 'M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM12 8h.01M12 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+    bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.500 10.900c.700.600 1 1.400 1 2.100h5c0-.700.300-1.500 1-2.100A6 6 0 0 0 12 3z', proj: 'M3 8h18v8H3zM9 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0M17 11h1M6 19v-3M18 19v-3',
+    air: 'M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8',
     mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3M9 21h6',
     chev: 'M6 9l6 6 6-6', chevr: 'M9 6l6 6-6 6',
     remote: 'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 6h.01M12 11h.01M12 16h.01',
@@ -69,7 +75,7 @@
   /* ---- Rung ---- */
   function haptic(kind) { /* kind: press | nav | error */
     if (!Store.setting('haptics')) return;
-    var mode = Store.setting('hapticMode');
+    var mode = 'system'; /* chỉ dùng rung hệ thống */
     if (kind === 'error') return Bridge.haptic('error', mode);
     var lvl = Store.setting('hapticLevel');
     if (kind === 'nav') return Bridge.haptic('tick', mode);

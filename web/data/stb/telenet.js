@@ -1,0 +1,3 @@
+/* VIGO — thư viện mã IR (loại: stb), tạo tự động bằng tools/build-devices.py từ Flipper-IRDB (CC0-1.0).
+ * KHÔNG sửa tay. Mọi mã lấy nguyên từ tệp nguồn (xem entries[].source); app không tự tạo mã. */
+VigoLib.registerDev("stb","Telenet",[{"brand":"Telenet","model":"Cáp/vệ tinh · Chung","models":["Chung"],"type":"stb","kind":"Cáp/vệ tinh","core":3,"source":{"name":"Flipper-IRDB","license":"CC0-1.0","url":"https://github.com/logickworkshop/Flipper-IRDB/blob/main/Cable_Boxes/Telenet/telenet.ir","files":["Cable_Boxes/Telenet/telenet.ir"]},"codes":{"vol_up":{"spec":{"protocol":"rc6","address":0,"command":16}},"vol_down":{"spec":{"protocol":"rc6","address":0,"command":17}},"mute":{"spec":{"protocol":"rc6","address":0,"command":13}}}}]);

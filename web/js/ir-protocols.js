@@ -1,5 +1,5 @@
 /* VIGO — bộ mã hóa giao thức IR.
- * Chỉ dùng các giao thức công khai (NEC, NEC mở rộng, Samsung32, Sony SIRC) + Raw + Pronto.
+ * Chỉ dùng các giao thức công khai (NEC và biến thể, Samsung32, Sony SIRC, Kaseikyo, Philips RC5/RC6, Pioneer) + Raw + Pronto + Broadlink.
  * Không chứa bất kỳ mã thiết bị cụ thể nào: mã do người dùng nhập/import và tự kiểm tra.
  * Kết quả encode(spec) = { freq: Hz, pattern: [µs bật, µs tắt, ...] } (bắt đầu bằng xung bật). */
 (function (root) {
@@ -109,6 +109,93 @@
       };
     });
 
+  /* ---- Giao thức bổ sung: viết theo đúng bộ phát của Flipper (flipperzero-firmware/lib/infrared/encoder_decoder) ---- */
+
+  /* Manchester: danh sách [mức, µs] nửa-bit -> mẫu xung (gộp các nửa liền kề cùng mức; bỏ khoảng nghỉ đầu/cuối). */
+  function halvesToPattern(h, lead) {
+    var runs = [];
+    (lead || []).forEach(function (x) { runs.push([x[0], x[1]]); });
+    h.forEach(function (x) {
+      var last = runs[runs.length - 1];
+      if (last && last[0] === x[0]) last[1] += x[1]; else runs.push([x[0], x[1]]);
+    });
+    while (runs.length && !runs[0][0]) runs.shift();
+    while (runs.length && !runs[runs.length - 1][0]) runs.pop();
+    return runs.map(function (r) { return r[1]; });
+  }
+
+  function msb(value, n) {
+    var a = [];
+    for (var i = n - 1; i >= 0; i--) a.push((value >>> i) & 1);
+    return a;
+  }
+
+  /* RC5 / RC5X: 36 kHz, nửa-bit 888 µs. 14 bit: start, start2 (RC5=1, RC5X=0), toggle, địa chỉ 5 bit, lệnh 6 bit (MSB trước).
+   * Bit 1 = nghỉ rồi phát; bit 0 = phát rồi nghỉ. Bit toggle đổi mỗi lần bấm (spec.toggle) để thiết bị phân biệt "bấm lại" với "giữ". */
+  ['rc5', 'rc5x'].forEach(function (name) {
+    PROTOCOLS[name] = {
+      label: name === 'rc5' ? 'Philips RC5' : 'Philips RC5X', freq: 36000, addrMax: 0xFF, cmdMax: 0xFF,
+      encode: function (s) {
+        var a = hexInt(s.address), c = hexInt(s.command);
+        checkRange('Địa chỉ', a, 0xFF); checkRange('Lệnh', c, 0xFF);
+        var bits = [1, name === 'rc5' ? 1 : 0, s.toggle ? 1 : 0].concat(msb(a & 0x1F, 5), msb(c & 0x3F, 6));
+        var h = [];
+        bits.forEach(function (b) { h.push([b ? 0 : 1, 888], [b ? 1 : 0, 888]); });
+        return halvesToPattern(h);
+      }
+    };
+  });
+
+  /* RC6 (chế độ 0): 36 kHz, dẫn 2666/889, nửa-bit 444 µs; start, 3 bit chế độ = 0, toggle (dài gấp đôi), địa chỉ 8 bit, lệnh 8 bit (MSB trước).
+   * Bit 1 = phát rồi nghỉ; bit 0 = nghỉ rồi phát. */
+  PROTOCOLS.rc6 = {
+    label: 'Philips RC6', freq: 36000, addrMax: 0xFF, cmdMax: 0xFF,
+    encode: function (s) {
+      var a = hexInt(s.address), c = hexInt(s.command);
+      checkRange('Địa chỉ', a, 0xFF); checkRange('Lệnh', c, 0xFF);
+      var bits = [1, 0, 0, 0, s.toggle ? 1 : 0].concat(msb(a, 8), msb(c, 8));
+      var h = [];
+      bits.forEach(function (b, i) {
+        var d = i === 4 ? 888 : 444;
+        h.push([b ? 1 : 0, d], [b ? 0 : 1, d]);
+      });
+      return halvesToPattern(h, [[1, 2666], [0, 889]]);
+    }
+  };
+
+  /* NEC42 (địa chỉ 13 bit + bù, lệnh 8 bit + bù) và NEC42ext (địa chỉ 26 bit, lệnh 16 bit): 42 bit, thời gian như NEC. */
+  PROTOCOLS.nec42 = {
+    label: 'NEC42', freq: 38000, addrMax: 0x1FFF, cmdMax: 0xFF,
+    encode: function (s) {
+      var a = hexInt(s.address), c = hexInt(s.command);
+      checkRange('Địa chỉ', a, 0x1FFF); checkRange('Lệnh', c, 0xFF);
+      var bits = [].concat(lsb(a, 13), lsb(~a & 0x1FFF, 13), lsb(c, 8), lsb(~c & 0xFF, 8));
+      return [9000, 4500].concat(pulseDistance(bits, { mark: 560, zero: 560, one: 1690 }), [560]);
+    }
+  };
+  PROTOCOLS.nec42ext = {
+    label: 'NEC42ext', freq: 38000, addrMax: 0x3FFFFFF, cmdMax: 0xFFFF,
+    encode: function (s) {
+      var a = hexInt(s.address), c = hexInt(s.command);
+      checkRange('Địa chỉ', a, 0x3FFFFFF); checkRange('Lệnh', c, 0xFFFF);
+      var bits = [].concat(lsb(a, 26), lsb(c, 16));
+      return [9000, 4500].concat(pulseDistance(bits, { mark: 560, zero: 560, one: 1690 }), [560]);
+    }
+  };
+
+  /* Pioneer: 40 kHz, dẫn 8500/4225, bit 500 + (500|1500), 32 bit (địa chỉ, ~địa chỉ, lệnh, ~lệnh), phát 2 lần cách ~26 ms. */
+  PROTOCOLS.pioneer = {
+    label: 'Pioneer', freq: 40000, addrMax: 0xFF, cmdMax: 0xFF,
+    encode: function (s) {
+      var a = hexInt(s.address), c = hexInt(s.command);
+      checkRange('Địa chỉ', a, 0xFF); checkRange('Lệnh', c, 0xFF);
+      var bits = [].concat(lsb(a, 8), lsb(~a & 0xFF, 8), lsb(c, 8), lsb(~c & 0xFF, 8));
+      var frame = [8500, 4225].concat(pulseDistance(bits, { mark: 500, zero: 500, one: 1500 }), [500]);
+      var gap = 500 + 26000;
+      return frame.concat([gap], frame);
+    }
+  };
+
   function validatePattern(freq, pattern) {
     if (!Number.isInteger(freq) || freq < 15000 || freq > 60000) {
       throw new Error('Tần số sóng mang không hợp lệ: ' + freq + ' Hz (cho phép 15000–60000)');
@@ -207,7 +294,8 @@
     return v;
   }
 
-  var FLIPPER_MAP = { NEC: 'nec', NECext: 'necext', Samsung32: 'samsung32', SIRC: 'sirc12', SIRC15: 'sirc15', SIRC20: 'sirc20', Kaseikyo: 'kaseikyo' };
+  var FLIPPER_MAP = { NEC: 'nec', NECext: 'necext', Samsung32: 'samsung32', SIRC: 'sirc12', SIRC15: 'sirc15', SIRC20: 'sirc20', Kaseikyo: 'kaseikyo',
+    RC5: 'rc5', RC5X: 'rc5x', RC6: 'rc6', NEC42: 'nec42', NEC42ext: 'nec42ext', Pioneer: 'pioneer' };
 
   function parseFlipperIr(text) {
     var records = [], cur = null;
